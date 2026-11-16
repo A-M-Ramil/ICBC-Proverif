@@ -1,0 +1,96 @@
+(* 1. The Public Blockchain Network *)
+free c: channel.
+
+(* 2. Types & Cryptography *)
+type skey. 
+type pkey. 
+fun pk(skey): pkey.
+
+(* Digital Signatures *)
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; getmess(sign(m,k)) = m.
+reduc forall m: bitstring, k: skey; checksign(sign(m,k), pk(k)) = m.
+
+(* Hashing for Model Provenance *)
+fun hash(bitstring): bitstring.
+
+(* 3. Events for the Complete Protocol *)
+event humanDelegates(pkey, bitstring, bitstring).    (* Owner PubKey, AI Model Hash, Spending Limits *)
+event issuerCertifies(bitstring, pkey).              (* AI Model Hash, Issuer PubKey *)
+event aiWalletExecutes(pkey, bitstring, bitstring).  (* Owner PubKey, AI Model Hash, Executed Limits *)
+
+(* 4. The Queries (What you are proving to your supervisor) *)
+free humanPrivKey: skey [private].
+free issuerPrivKey: skey [private].
+
+(* Proof 1: Private keys cannot be stolen by the network attacker *)
+query attacker(humanPrivKey).
+query attacker(issuerPrivKey).
+
+(* Proof 2: ZERO TRUST DELEGATION. The AI wallet can ONLY execute if the human explicitly set the limits. *)
+query owner: pkey, mHash: bitstring, limits: bitstring; 
+      event(aiWalletExecutes(owner, mHash, limits)) ==> event(humanDelegates(owner, mHash, limits)).
+
+(* Proof 3: SAFETY COMPLIANCE. The AI wallet can ONLY execute if a trusted Issuer certified its model. *)
+query owner: pkey, mHash: bitstring, limits: bitstring; 
+      event(aiWalletExecutes(owner, mHash, limits)) ==> event(issuerCertifies(mHash, pk(issuerPrivKey))).
+
+
+(* 5. Process 1: The Human Owner (Delegation Layer) *)
+let processHuman =
+    let humanPubKey = pk(humanPrivKey) in
+    out(c, humanPubKey); 
+    
+    (* Generating the AI's Algorithmic and Cryptographic Identity *)
+    new aiModelData: bitstring;
+    let aiModelHash = hash(aiModelData) in
+    
+    (* Setting operational wallet constraints (e.g., $10k limit) *)
+    new spendingLimits: bitstring;
+    
+    event humanDelegates(humanPubKey, aiModelHash, spendingLimits);
+    
+    (* Human signs the delegation payload and sends it to the blockchain *)
+    let delegationPayload = (aiModelHash, spendingLimits) in
+    let delegationSig = sign(delegationPayload, humanPrivKey) in
+    out(c, (delegationPayload, delegationSig)).
+
+
+(* 6. Process 2: The Trusted Issuer (Behavioral Layer) *)
+let processIssuer =
+    let issuerPubKey = pk(issuerPrivKey) in
+    out(c, issuerPubKey);
+    
+    (* The Issuer intercepts the public AI model data, audits it, and signs a safety certificate *)
+    in(c, (interceptedPayload: bitstring, interceptedSig: bitstring));
+    let (mHash: bitstring, limits: bitstring) = interceptedPayload in
+    
+    event issuerCertifies(mHash, issuerPubKey);
+    
+    let safetyCert = sign(mHash, issuerPrivKey) in
+    out(c, safetyCert).
+
+
+(* 7. Process 3: The Smart Contract Wallet (Execution & Zero Trust Enforcement) *)
+let processSmartContract(humanPubKey: pkey, issuerPubKey: pkey) =
+    (* The contract receives the Human's delegation AND the Issuer's safety certificate *)
+    in(c, (regPayload: bitstring, regSig: bitstring));
+    in(c, safetyCert: bitstring);
+    
+    let (mHash: bitstring, limits: bitstring) = regPayload in
+    
+    (* ENFORCEMENT 1: Verify the Human Owner actually signed these limits *)
+    let verifiedDelegation = checksign(regSig, humanPubKey) in
+    
+    (* ENFORCEMENT 2: Verify the Trusted Issuer actually audited this exact AI Model *)
+    let verifiedCert = checksign(safetyCert, issuerPubKey) in
+    
+    if verifiedDelegation = regPayload then
+        if verifiedCert = mHash then
+            (* If both cryptographic checks pass, the AI wallet is live and can transact *)
+            event aiWalletExecutes(humanPubKey, mHash, limits).
+
+
+(* 8. The Main Simulation Runner *)
+process 
+    ( !processHuman | !processIssuer | !processSmartContract(pk(humanPrivKey), pk(issuerPrivKey)) )

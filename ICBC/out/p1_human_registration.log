@@ -1,0 +1,693 @@
+Process 0 (that is, the initial process):
+{1}out(c, pk(skIRM));
+(
+    {2}!
+    {3}in(tls, (pkU: pkey,govID: bitstring));
+    {4}new n: bitstring;
+    {5}out(c, n);
+    {6}in(c, sig: bitstring);
+    {7}let (=tCtl,(=didOf(pkU),n2: bitstring)) = checksign(sig,pkU) in
+    {8}if (n2 = n) then
+    (
+        {10}get honestT(=pkU) in
+        {9}event IRMVerifiedHonest(pkU,n)
+    ) | (
+        {14}get validGovIDs(=govID) in
+        {11}let hgov: bitstring = h((pepper,govID)) in
+        {12}event GovVerified(didOf(pkU),hgov);
+        {13}out(c, sign((tAtt,(didOf(pkU),hgov)),skIRM))
+    )
+) | (
+    {15}!
+    {16}in(c, (sender: pkey,stx: bitstring));
+    {17}let (=tTx,(=addrDID,(=selRegisterDID,did: bitstring,hgov_1: bitstring,att: bitstring))) = checksign(stx,sender) in
+    {18}if (did = didOf(sender)) then
+    {19}if (checksign(att,pk(skIRM)) = (tAtt,(did,hgov_1))) then
+    {20}event Anchored(did,sender,hgov_1);
+    {21}out(c, (did,sender,hgov_1))
+) | (
+    {22}!
+    {23}in(c, x: bitstring);
+    {24}out(tls, x)
+) | (
+    {25}!
+    {26}new skH: skey;
+    {27}new gH: bitstring;
+    {28}insert validGovIDs(gH);
+    (
+        {29}let skU: skey = skH in
+        {30}let govID_1: bitstring = gH in
+        {31}let pkU_1: pkey = pk(skU) in
+        {32}let didU: bitstring = didOf(pkU_1) in
+        {33}event HonestUser(pkU_1);
+        {34}insert honestT(pkU_1);
+        {35}out(c, pkU_1);
+        {36}out(tls, (pkU_1,govID_1));
+        {37}in(c, n_1: bitstring);
+        {38}event UserStartsReg(pkU_1,n_1);
+        {39}out(c, sign((tCtl,(didU,n_1)),skU));
+        {40}in(c, att_1: bitstring);
+        {41}let (=tAtt,(=didU,hgov_2: bitstring)) = checksign(att_1,pk(skIRM)) in
+        {42}event UserSubmitsAnchor(didU,pkU_1,hgov_2);
+        {43}out(c, (pkU_1,sign((tTx,(addrDID,(selRegisterDID,didU,hgov_2,att_1))),skU)))
+    ) | (
+        {44}let sk: skey = skH in
+        (
+            {45}!
+            {46}in(c, (t: tag,m: bitstring));
+            {47}if ((t ≠ tCtl) && ((t ≠ tAtt) && (t ≠ tTx))) then
+            {48}out(c, sign((t,m),sk))
+        ) | (
+            {49}!
+            {50}in(c, (dest: bitstring,call: bitstring));
+            {51}if (dest ≠ addrDID) then
+            {52}out(c, sign((tTx,(dest,call)),sk))
+        )
+    )
+) | (
+    {53}insert validGovIDs(govVictim);
+    {54}!
+    {55}new skV: skey;
+    (
+        {56}let skU_1: skey = skV in
+        {57}let govID_2: bitstring = govVictim in
+        {58}let pkU_2: pkey = pk(skU_1) in
+        {59}let didU_1: bitstring = didOf(pkU_2) in
+        {60}event HonestUser(pkU_2);
+        {61}insert honestT(pkU_2);
+        {62}out(c, pkU_2);
+        {63}out(tls, (pkU_2,govID_2));
+        {64}in(c, n_2: bitstring);
+        {65}event UserStartsReg(pkU_2,n_2);
+        {66}out(c, sign((tCtl,(didU_1,n_2)),skU_1));
+        {67}in(c, att_2: bitstring);
+        {68}let (=tAtt,(=didU_1,hgov_3: bitstring)) = checksign(att_2,pk(skIRM)) in
+        {69}event UserSubmitsAnchor(didU_1,pkU_2,hgov_3);
+        {70}out(c, (pkU_2,sign((tTx,(addrDID,(selRegisterDID,didU_1,hgov_3,att_2))),skU_1)))
+    ) | (
+        {71}let sk_1: skey = skV in
+        (
+            {72}!
+            {73}in(c, (t_1: tag,m_1: bitstring));
+            {74}if ((t_1 ≠ tCtl) && ((t_1 ≠ tAtt) && (t_1 ≠ tTx))) then
+            {75}out(c, sign((t_1,m_1),sk_1))
+        ) | (
+            {76}!
+            {77}in(c, (dest_1: bitstring,call_1: bitstring));
+            {78}if (dest_1 ≠ addrDID) then
+            {79}out(c, sign((tTx,(dest_1,call_1)),sk_1))
+        )
+    )
+) | (
+    {80}!
+    {81}new gC: bitstring;
+    {82}insert validGovIDs(gC);
+    {83}out(c, gC)
+)
+
+--  Process 1 (that is, process 0, encoded for secret skV, secret skH, with let moved downwards):
+{1}out(c, pk(skIRM));
+(
+    {2}!
+    {3}in(tls, (pkU: pkey,govID: bitstring));
+    {4}new n: bitstring;
+    {5}out(c, n);
+    {6}in(c, sig: bitstring);
+    {7}let (=tCtl,(=didOf(pkU),n2: bitstring)) = checksign(sig,pkU) in
+    {8}if (n2 = n) then
+    (
+        {9}get honestT(=pkU) in
+        {10}event IRMVerifiedHonest(pkU,n)
+    ) | (
+        {11}get validGovIDs(=govID) in
+        {12}let hgov: bitstring = h((pepper,govID)) in
+        {13}event GovVerified(didOf(pkU),hgov);
+        {14}out(c, sign((tAtt,(didOf(pkU),hgov)),skIRM))
+    )
+) | (
+    {15}!
+    {16}in(c, (sender: pkey,stx: bitstring));
+    {17}let (=tTx,(=addrDID,(=selRegisterDID,did: bitstring,hgov_1: bitstring,att: bitstring))) = checksign(stx,sender) in
+    {18}if (did = didOf(sender)) then
+    {19}if (checksign(att,pk(skIRM)) = (tAtt,(did,hgov_1))) then
+    {20}event Anchored(did,sender,hgov_1);
+    {21}out(c, (did,sender,hgov_1))
+) | (
+    {22}!
+    {23}in(c, x: bitstring);
+    {24}out(tls, x)
+) | (
+    {25}!
+    {26}new skH: skey;
+    {27}event skH_contains(skH);
+    {28}new gH: bitstring;
+    {29}insert validGovIDs(gH);
+    (
+        {30}let skU: skey = skH in
+        {32}let pkU_1: pkey = pk(skU) in
+        {34}event HonestUser(pkU_1);
+        {35}insert honestT(pkU_1);
+        {36}out(c, pkU_1);
+        {31}let govID_1: bitstring = gH in
+        {37}out(tls, (pkU_1,govID_1));
+        {38}in(c, n_1: bitstring);
+        {39}event UserStartsReg(pkU_1,n_1);
+        {33}let didU: bitstring = didOf(pkU_1) in
+        {40}out(c, sign((tCtl,(didU,n_1)),skU));
+        {41}in(c, att_1: bitstring);
+        {42}let (=tAtt,(=didU,hgov_2: bitstring)) = checksign(att_1,pk(skIRM)) in
+        {43}event UserSubmitsAnchor(didU,pkU_1,hgov_2);
+        {44}out(c, (pkU_1,sign((tTx,(addrDID,(selRegisterDID,didU,hgov_2,att_1))),skU)))
+    ) | (
+        {45}let sk: skey = skH in
+        (
+            {46}!
+            {47}in(c, (t: tag,m: bitstring));
+            {48}if ((t ≠ tCtl) && ((t ≠ tAtt) && (t ≠ tTx))) then
+            {49}out(c, sign((t,m),sk))
+        ) | (
+            {50}!
+            {51}in(c, (dest: bitstring,call: bitstring));
+            {52}if (dest ≠ addrDID) then
+            {53}out(c, sign((tTx,(dest,call)),sk))
+        )
+    )
+) | (
+    {54}insert validGovIDs(govVictim);
+    {55}!
+    {56}new skV: skey;
+    {57}event skV_contains(skV);
+    (
+        {58}let skU_1: skey = skV in
+        {60}let pkU_2: pkey = pk(skU_1) in
+        {62}event HonestUser(pkU_2);
+        {63}insert honestT(pkU_2);
+        {64}out(c, pkU_2);
+        {59}let govID_2: bitstring = govVictim in
+        {65}out(tls, (pkU_2,govID_2));
+        {66}in(c, n_2: bitstring);
+        {67}event UserStartsReg(pkU_2,n_2);
+        {61}let didU_1: bitstring = didOf(pkU_2) in
+        {68}out(c, sign((tCtl,(didU_1,n_2)),skU_1));
+        {69}in(c, att_2: bitstring);
+        {70}let (=tAtt,(=didU_1,hgov_3: bitstring)) = checksign(att_2,pk(skIRM)) in
+        {71}event UserSubmitsAnchor(didU_1,pkU_2,hgov_3);
+        {72}out(c, (pkU_2,sign((tTx,(addrDID,(selRegisterDID,didU_1,hgov_3,att_2))),skU_1)))
+    ) | (
+        {73}let sk_1: skey = skV in
+        (
+            {74}!
+            {75}in(c, (t_1: tag,m_1: bitstring));
+            {76}if ((t_1 ≠ tCtl) && ((t_1 ≠ tAtt) && (t_1 ≠ tTx))) then
+            {77}out(c, sign((t_1,m_1),sk_1))
+        ) | (
+            {78}!
+            {79}in(c, (dest_1: bitstring,call_1: bitstring));
+            {80}if (dest_1 ≠ addrDID) then
+            {81}out(c, sign((tTx,(dest_1,call_1)),sk_1))
+        )
+    )
+) | (
+    {82}!
+    {83}new gC: bitstring;
+    {84}insert validGovIDs(gC);
+    {85}out(c, gC)
+)
+
+-- Query not (event(Anchored(didOf(p),p,g)) && event(HonestUser(p))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not (event(Anchored(didOf(p),p,g)) && event(HonestUser(p)))
+goal reachable: event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1)))) && event(HonestUser(pk(skV_1)))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+gC_1 = gC[!1 = @sid_1]
+
+Derivation:
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+gC_1 = gC[!1 = @sid_1]
+n_3 = n[govID = gC_1,pkU = pk(skV_1),!1 = @sid_2]
+
+1. Event HonestUser(pk(skV_1)) may be executed at {62}.
+event(HonestUser(pk(skV_1))).
+
+2. The attacker has some term n_4.
+attacker(n_4).
+
+3. The message gC_1 may be sent to the attacker at output {85}.
+attacker(gC_1).
+
+4. The message pk(skV_1) may be sent to the attacker at output {64}.
+attacker(pk(skV_1)).
+
+5. By 4, the attacker may know pk(skV_1).
+By 3, the attacker may know gC_1.
+Using the function 2-tuple the attacker may obtain (pk(skV_1),gC_1).
+attacker((pk(skV_1),gC_1)).
+
+6. The message (pk(skV_1),gC_1) that the attacker may have by 5 may be received at input {23}.
+So the message (pk(skV_1),gC_1) may be sent on channel tls[] at output {24}.
+mess(tls[],(pk(skV_1),gC_1)).
+
+7. The message (pk(skV_1),gC_1) that the attacker may have by 5 may be received at input {23}.
+So the message (pk(skV_1),gC_1) may be sent on channel tls[] at output {24}.
+mess(tls[],(pk(skV_1),gC_1)).
+
+8. The message (pk(skV_1),gC_1) that may be sent on channel tls[] by 7 may be received at input {3}.
+So the message n_3 may be sent to the attacker at output {5}.
+attacker(n_3).
+
+9. The message n_3 that the attacker may have by 8 may be received at input {66}.
+So the message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) may be sent to the attacker at output {68}.
+attacker(sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1)).
+
+10. The entry validGovIDs(gC_1) may be inserted in a table at insert {84}.
+table(validGovIDs(gC_1)).
+
+11. The message (pk(skV_1),gC_1) that may be sent on channel tls[] by 6 may be received at input {3}.
+The message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) that the attacker may have by 9 may be received at input {6}.
+The entry validGovIDs(gC_1) that may be in a table by 10 may be read at get {11}.
+So the message sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[]) may be sent to the attacker at output {14}.
+attacker(sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])).
+
+12. The message n_4 that the attacker may have by 2 may be received at input {66}.
+The message sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[]) that the attacker may have by 11 may be received at input {69}.
+So the message (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1)) may be sent to the attacker at output {72}.
+attacker((pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1))).
+
+13. By 12, the attacker may know (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1)).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1).
+attacker(sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1)).
+
+14. By 4, the attacker may know pk(skV_1).
+By 13, the attacker may know sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1).
+Using the function 2-tuple the attacker may obtain (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1)).
+attacker((pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1))).
+
+15. The message (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],gC_1)),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],gC_1)))),skIRM[])))),skV_1)) that the attacker may have by 14 may be received at input {16}.
+So event Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1))) may be executed at {20}.
+event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1)))).
+
+16. By 15, event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1)))).
+By 1, event(HonestUser(pk(skV_1))).
+The goals are reached, combined in the following fact:
+event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1)))) && event(HonestUser(pk(skV_1))).
+
+
+Unified n_4 with n[govID = gC[!1 = @sid_1],pkU = pk(skV[!1 = @sid]),!1 = @sid_2]
+The clause after UnifyDerivationPrecise is
+event(Anchored(didOf(pk(skV[!1 = @sid])),pk(skV[!1 = @sid]),h((pepper[],gC[!1 = @sid_1])))) && event(HonestUser(pk(skV[!1 = @sid])))
+This clause still contradicts the query.
+Could not find a trace corresponding to this derivation.
+goal reachable: event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[])))) && event(HonestUser(pk(skV_1)))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+
+Derivation:
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+n_3 = n[govID = govVictim[],pkU = pk(skV_1),!1 = @sid_1]
+
+1. Event HonestUser(pk(skV_1)) may be executed at {62}.
+event(HonestUser(pk(skV_1))).
+
+2. The attacker has some term n_4.
+attacker(n_4).
+
+3. The message (pk(skV_1),govVictim[]) may be sent on channel tls[] at output {65}.
+mess(tls[],(pk(skV_1),govVictim[])).
+
+4. The message (pk(skV_1),govVictim[]) that may be sent on channel tls[] by 3 may be received at input {3}.
+So the message n_3 may be sent to the attacker at output {5}.
+attacker(n_3).
+
+5. The message n_3 that the attacker may have by 4 may be received at input {66}.
+So the message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) may be sent to the attacker at output {68}.
+attacker(sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1)).
+
+6. The entry validGovIDs(govVictim[]) may be inserted in a table at insert {54}.
+table(validGovIDs(govVictim[])).
+
+7. The message (pk(skV_1),govVictim[]) that may be sent on channel tls[] by 3 may be received at input {3}.
+The message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) that the attacker may have by 5 may be received at input {6}.
+The entry validGovIDs(govVictim[]) that may be in a table by 6 may be read at get {11}.
+So the message sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[]) may be sent to the attacker at output {14}.
+attacker(sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])).
+
+8. The message n_4 that the attacker may have by 2 may be received at input {66}.
+The message sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[]) that the attacker may have by 7 may be received at input {69}.
+So the message (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1)) may be sent to the attacker at output {72}.
+attacker((pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1))).
+
+9. By 8, the attacker may know (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1)).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1).
+attacker(sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1)).
+
+10. The message pk(skV_1) may be sent to the attacker at output {64}.
+attacker(pk(skV_1)).
+
+11. By 10, the attacker may know pk(skV_1).
+By 9, the attacker may know sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1).
+Using the function 2-tuple the attacker may obtain (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1)).
+attacker((pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1))).
+
+12. The message (pk(skV_1),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_1)),h((pepper[],govVictim[])),sign((tAtt,(didOf(pk(skV_1)),h((pepper[],govVictim[])))),skIRM[])))),skV_1)) that the attacker may have by 11 may be received at input {16}.
+So event Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[]))) may be executed at {20}.
+event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[])))).
+
+13. By 12, event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[])))).
+By 1, event(HonestUser(pk(skV_1))).
+The goals are reached, combined in the following fact:
+event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[])))) && event(HonestUser(pk(skV_1))).
+
+
+Unified n_4 with n[govID = govVictim[],pkU = pk(skV[!1 = @sid]),!1 = @sid_1]
+The clause after UnifyDerivationPrecise is
+event(Anchored(didOf(pk(skV[!1 = @sid])),pk(skV[!1 = @sid]),h((pepper[],govVictim[])))) && event(HonestUser(pk(skV[!1 = @sid])))
+This clause still contradicts the query.
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skIRM) at {1}
+
+insert validGovIDs(govVictim) at {54}
+
+new skV: skey creating skV_2 at {56} in copy a
+
+event skV_contains(skV_2) at {57} in copy a
+
+event HonestUser(pk(skV_2)) at {62} in copy a (goal)
+
+insert honestT(pk(skV_2)) at {63} in copy a
+
+out(c, ~M_1) with ~M_1 = pk(skV_2) at {64} in copy a
+
+out(tls, (pk(skV_2),govVictim)) at {65} in copy a received at {3} in copy a_1
+
+new n: bitstring creating n_5 at {4} in copy a_1
+
+out(c, ~M_2) with ~M_2 = n_5 at {5} in copy a_1
+
+in(c, ~M_2) with ~M_2 = n_5 at {66} in copy a
+
+event UserStartsReg(pk(skV_2),n_5) at {67} in copy a
+
+out(c, ~M_3) with ~M_3 = sign((tCtl,(didOf(pk(skV_2)),n_5)),skV_2) at {68} in copy a
+
+in(c, ~M_3) with ~M_3 = sign((tCtl,(didOf(pk(skV_2)),n_5)),skV_2) at {6} in copy a_1
+
+get validGovIDs(govVictim) at {11} in copy a_1
+
+event GovVerified(didOf(pk(skV_2)),h((pepper,govVictim))) at {13} in copy a_1
+
+out(c, ~M_4) with ~M_4 = sign((tAtt,(didOf(pk(skV_2)),h((pepper,govVictim)))),skIRM) at {14} in copy a_1
+
+in(c, ~M_4) with ~M_4 = sign((tAtt,(didOf(pk(skV_2)),h((pepper,govVictim)))),skIRM) at {69} in copy a
+
+event UserSubmitsAnchor(didOf(pk(skV_2)),pk(skV_2),h((pepper,govVictim))) at {71} in copy a
+
+out(c, (~M_5,~M_6)) with ~M_5 = pk(skV_2), ~M_6 = sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_2)),h((pepper,govVictim)),sign((tAtt,(didOf(pk(skV_2)),h((pepper,govVictim)))),skIRM)))),skV_2) at {72} in copy a
+
+in(c, (~M_1,~M_6)) with ~M_1 = pk(skV_2), ~M_6 = sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skV_2)),h((pepper,govVictim)),sign((tAtt,(didOf(pk(skV_2)),h((pepper,govVictim)))),skIRM)))),skV_2) at {16} in copy a_2
+
+event Anchored(didOf(pk(skV_2)),pk(skV_2),h((pepper,govVictim))) at {20} in copy a_2 (goal)
+
+The event Anchored(didOf(pk(skV_2)),pk(skV_2),h((pepper,govVictim))) is executed at {20} in copy a_2.
+The event HonestUser(pk(skV_2)) is executed at {62} in copy a.
+A trace has been found.
+RESULT not (event(Anchored(didOf(p),p,g)) && event(HonestUser(p))) is false.
+-- Query not event(IRMVerifiedHonest(p,n_3)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(IRMVerifiedHonest(p,n_3))
+goal reachable: attacker(govID_3) -> event(IRMVerifiedHonest(pk(skV_1),n_3))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+n_3 = n[govID = govID_3,pkU = pk(skV_1),!1 = @sid_1]
+
+Derivation:
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+n_3 = n[govID = govID_3,pkU = pk(skV_1),!1 = @sid_1]
+
+1. We assume as hypothesis that
+attacker(govID_3).
+
+2. The message pk(skV_1) may be sent to the attacker at output {64}.
+attacker(pk(skV_1)).
+
+3. By 2, the attacker may know pk(skV_1).
+By 1, the attacker may know govID_3.
+Using the function 2-tuple the attacker may obtain (pk(skV_1),govID_3).
+attacker((pk(skV_1),govID_3)).
+
+4. The message (pk(skV_1),govID_3) that the attacker may have by 3 may be received at input {23}.
+So the message (pk(skV_1),govID_3) may be sent on channel tls[] at output {24}.
+mess(tls[],(pk(skV_1),govID_3)).
+
+5. The message (pk(skV_1),govID_3) that the attacker may have by 3 may be received at input {23}.
+So the message (pk(skV_1),govID_3) may be sent on channel tls[] at output {24}.
+mess(tls[],(pk(skV_1),govID_3)).
+
+6. The message (pk(skV_1),govID_3) that may be sent on channel tls[] by 5 may be received at input {3}.
+So the message n_3 may be sent to the attacker at output {5}.
+attacker(n_3).
+
+7. The message n_3 that the attacker may have by 6 may be received at input {66}.
+So the message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) may be sent to the attacker at output {68}.
+attacker(sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1)).
+
+8. The entry honestT(pk(skV_1)) may be inserted in a table at insert {63}.
+table(honestT(pk(skV_1))).
+
+9. The message (pk(skV_1),govID_3) that may be sent on channel tls[] by 4 may be received at input {3}.
+The message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) that the attacker may have by 7 may be received at input {6}.
+The entry honestT(pk(skV_1)) that may be in a table by 8 may be read at get {9}.
+So event IRMVerifiedHonest(pk(skV_1),n_3) may be executed at {10}.
+event(IRMVerifiedHonest(pk(skV_1),n_3)).
+
+10. By 9, event(IRMVerifiedHonest(pk(skV_1),n_3)).
+The goal is reached, represented in the following fact:
+event(IRMVerifiedHonest(pk(skV_1),n_3)).
+
+
+Could not find a trace corresponding to this derivation.
+goal reachable: event(IRMVerifiedHonest(pk(skV_1),n_3))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+n_3 = n[govID = govVictim[],pkU = pk(skV_1),!1 = @sid_1]
+
+Derivation:
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+n_3 = n[govID = govVictim[],pkU = pk(skV_1),!1 = @sid_1]
+
+1. The message (pk(skV_1),govVictim[]) may be sent on channel tls[] at output {65}.
+mess(tls[],(pk(skV_1),govVictim[])).
+
+2. The message (pk(skV_1),govVictim[]) that may be sent on channel tls[] by 1 may be received at input {3}.
+So the message n_3 may be sent to the attacker at output {5}.
+attacker(n_3).
+
+3. The message n_3 that the attacker may have by 2 may be received at input {66}.
+So the message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) may be sent to the attacker at output {68}.
+attacker(sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1)).
+
+4. The entry honestT(pk(skV_1)) may be inserted in a table at insert {63}.
+table(honestT(pk(skV_1))).
+
+5. The message (pk(skV_1),govVictim[]) that may be sent on channel tls[] by 1 may be received at input {3}.
+The message sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1) that the attacker may have by 3 may be received at input {6}.
+The entry honestT(pk(skV_1)) that may be in a table by 4 may be read at get {9}.
+So event IRMVerifiedHonest(pk(skV_1),n_3) may be executed at {10}.
+event(IRMVerifiedHonest(pk(skV_1),n_3)).
+
+6. By 5, event(IRMVerifiedHonest(pk(skV_1),n_3)).
+The goal is reached, represented in the following fact:
+event(IRMVerifiedHonest(pk(skV_1),n_3)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skIRM) at {1}
+
+insert validGovIDs(govVictim) at {54}
+
+new skV: skey creating skV_2 at {56} in copy a
+
+event skV_contains(skV_2) at {57} in copy a
+
+event HonestUser(pk(skV_2)) at {62} in copy a
+
+insert honestT(pk(skV_2)) at {63} in copy a
+
+out(c, ~M_1) with ~M_1 = pk(skV_2) at {64} in copy a
+
+out(tls, (pk(skV_2),govVictim)) at {65} in copy a received at {3} in copy a_1
+
+new n: bitstring creating n_4 at {4} in copy a_1
+
+out(c, ~M_2) with ~M_2 = n_4 at {5} in copy a_1
+
+in(c, ~M_2) with ~M_2 = n_4 at {66} in copy a
+
+event UserStartsReg(pk(skV_2),n_4) at {67} in copy a
+
+out(c, ~M_3) with ~M_3 = sign((tCtl,(didOf(pk(skV_2)),n_4)),skV_2) at {68} in copy a
+
+in(c, ~M_3) with ~M_3 = sign((tCtl,(didOf(pk(skV_2)),n_4)),skV_2) at {6} in copy a_1
+
+get honestT(pk(skV_2)) at {9} in copy a_1
+
+event IRMVerifiedHonest(pk(skV_2),n_4) at {10} in copy a_1 (goal)
+
+The event IRMVerifiedHonest(pk(skV_2),n_4) is executed at {10} in copy a_1.
+A trace has been found.
+RESULT not event(IRMVerifiedHonest(p,n_3)) is false.
+-- Query not attacker(skIRM[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(skIRM[])
+RESULT not attacker(skIRM[]) is true.
+-- Query not attacker(pepper[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(pepper[])
+RESULT not attacker(pepper[]) is true.
+-- Query secret skH encoded as not (event(skH_contains(v)) && attacker(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query secret skH
+RESULT secret skH is true.
+-- Query secret skV encoded as not (event(skV_contains(v)) && attacker(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query secret skV
+RESULT secret skV is true.
+-- Weak secret govVictim in process 1.
+Translating the process into Horn clauses...
+Termination warning: v ≠ v_1 && attacker_guess(v_2,v) && attacker_guess(v_2,v_1) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker_guess(v,v_2) && attacker_guess(v_1,v_2) -> bad
+Selecting 0
+Completing...
+Termination warning: v ≠ v_1 && attacker_guess(v_2,v) && attacker_guess(v_2,v_1) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker_guess(v,v_2) && attacker_guess(v_1,v_2) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker(v) && attacker_guess(v,v_1) -> bad
+Selecting 1
+Termination warning: v ≠ v_1 && attacker(v) && attacker_guess(v_1,v) -> bad
+Selecting 1
+200 rules inserted. Base: 177 rules (69 with conclusion selected). Queue: 25 rules.
+400 rules inserted. Base: 339 rules (78 with conclusion selected). Queue: 7 rules.
+RESULT Weak secret govVictim is true.
+-- Query event(Anchored(didOf(p),o,g)) && event(HonestUser(p)) ==> event(UserSubmitsAnchor(didOf(p),o,g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Anchored(didOf(p),o,g)) && event(HonestUser(p)) ==> event(UserSubmitsAnchor(didOf(p),o,g))
+goal reachable: b-event(UserSubmitsAnchor(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1)))) -> event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1)))) && event(HonestUser(pk(skV_1)))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+gC_1 = gC[!1 = @sid_1]
+goal reachable: b-event(UserSubmitsAnchor(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[])))) -> event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[])))) && event(HonestUser(pk(skV_1)))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+goal reachable: b-event(UserSubmitsAnchor(didOf(pk(skH_1)),pk(skH_1),h((pepper[],gC_1)))) -> event(Anchored(didOf(pk(skH_1)),pk(skH_1),h((pepper[],gC_1)))) && event(HonestUser(pk(skH_1)))
+Abbreviations:
+skH_1 = skH[!1 = @sid]
+gC_1 = gC[!1 = @sid_1]
+goal reachable: b-event(UserSubmitsAnchor(didOf(pk(skH_1)),pk(skH_1),h((pepper[],gH_1)))) -> event(Anchored(didOf(pk(skH_1)),pk(skH_1),h((pepper[],gH_1)))) && event(HonestUser(pk(skH_1)))
+Abbreviations:
+skH_1 = skH[!1 = @sid]
+gH_1 = gH[!1 = @sid]
+RESULT event(Anchored(didOf(p),o,g)) && event(HonestUser(p)) ==> event(UserSubmitsAnchor(didOf(p),o,g)) is true.
+-- Query event(Anchored(d,o,g)) ==> event(GovVerified(d,g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Anchored(d,o,g)) ==> event(GovVerified(d,g))
+goal reachable: b-event(GovVerified(didOf(pk(k)),h((pepper[],gC_1)))) && attacker(k) -> event(Anchored(didOf(pk(k)),pk(k),h((pepper[],gC_1))))
+Abbreviations:
+gC_1 = gC[!1 = @sid]
+goal reachable: b-event(GovVerified(didOf(pk(skV_1)),h((pepper[],gC_1)))) -> event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],gC_1))))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+gC_1 = gC[!1 = @sid_1]
+goal reachable: b-event(GovVerified(didOf(pk(skV_1)),h((pepper[],govVictim[])))) -> event(Anchored(didOf(pk(skV_1)),pk(skV_1),h((pepper[],govVictim[]))))
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+goal reachable: b-event(GovVerified(didOf(pk(skH_1)),h((pepper[],gC_1)))) -> event(Anchored(didOf(pk(skH_1)),pk(skH_1),h((pepper[],gC_1))))
+Abbreviations:
+skH_1 = skH[!1 = @sid]
+gC_1 = gC[!1 = @sid_1]
+goal reachable: b-event(GovVerified(didOf(pk(skH_1)),h((pepper[],gH_1)))) -> event(Anchored(didOf(pk(skH_1)),pk(skH_1),h((pepper[],gH_1))))
+Abbreviations:
+skH_1 = skH[!1 = @sid]
+gH_1 = gH[!1 = @sid]
+RESULT event(Anchored(d,o,g)) ==> event(GovVerified(d,g)) is true.
+-- Query inj-event(IRMVerifiedHonest(p,n_3)) ==> inj-event(UserStartsReg(p,n_3)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(IRMVerifiedHonest(p,n_3)) ==> inj-event(UserStartsReg(p,n_3))
+goal reachable: b-inj-event(UserStartsReg(pk(skV_1),n_3),@occ67_1) && attacker(govID_3) -> inj-event(IRMVerifiedHonest(pk(skV_1),n_3),@occ10_1)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+n_3 = n[govID = govID_3,pkU = pk(skV_1),!1 = @sid_1]
+@occ10_1 = @occ10[sig = sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1),govID = govID_3,pkU = pk(skV_1),!1 = @sid_1]
+@occ67_1 = @occ67[n_2 = n_3,!1 = @sid]
+goal reachable: b-inj-event(UserStartsReg(pk(skV_1),n_3),@occ67_1) -> inj-event(IRMVerifiedHonest(pk(skV_1),n_3),@occ10_1)
+The hypothesis occurs strictly before the conclusion.
+Abbreviations:
+skV_1 = skV[!1 = @sid]
+n_3 = n[govID = govVictim[],pkU = pk(skV_1),!1 = @sid_1]
+@occ10_1 = @occ10[sig = sign((tCtl,(didOf(pk(skV_1)),n_3)),skV_1),govID = govVictim[],pkU = pk(skV_1),!1 = @sid_1]
+@occ67_1 = @occ67[n_2 = n_3,!1 = @sid]
+goal reachable: b-inj-event(UserStartsReg(pk(skH_1),n_3),@occ39_1) && attacker(govID_3) -> inj-event(IRMVerifiedHonest(pk(skH_1),n_3),@occ10_1)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+skH_1 = skH[!1 = @sid]
+n_3 = n[govID = govID_3,pkU = pk(skH_1),!1 = @sid_1]
+@occ10_1 = @occ10[sig = sign((tCtl,(didOf(pk(skH_1)),n_3)),skH_1),govID = govID_3,pkU = pk(skH_1),!1 = @sid_1]
+@occ39_1 = @occ39[n_1 = n_3,!1 = @sid]
+goal reachable: b-inj-event(UserStartsReg(pk(skH_1),n_3),@occ39_1) -> inj-event(IRMVerifiedHonest(pk(skH_1),n_3),@occ10_1)
+The hypothesis occurs strictly before the conclusion.
+Abbreviations:
+skH_1 = skH[!1 = @sid]
+gH_1 = gH[!1 = @sid]
+n_3 = n[govID = gH_1,pkU = pk(skH_1),!1 = @sid_1]
+@occ10_1 = @occ10[sig = sign((tCtl,(didOf(pk(skH_1)),n_3)),skH_1),govID = gH_1,pkU = pk(skH_1),!1 = @sid_1]
+@occ39_1 = @occ39[n_1 = n_3,!1 = @sid]
+RESULT inj-event(IRMVerifiedHonest(p,n_3)) ==> inj-event(UserStartsReg(p,n_3)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not (event(Anchored(didOf(p),p,g)) && event(HonestUser(p))) is false.
+
+Query not event(IRMVerifiedHonest(p,n_3)) is false.
+
+Query not attacker(skIRM[]) is true.
+
+Query not attacker(pepper[]) is true.
+
+Query secret skH is true.
+
+Query secret skV is true.
+
+Weak secret govVictim is true.
+
+Query event(Anchored(didOf(p),o,g)) && event(HonestUser(p)) ==> event(UserSubmitsAnchor(didOf(p),o,g)) is true.
+
+Query event(Anchored(d,o,g)) ==> event(GovVerified(d,g)) is true.
+
+Query inj-event(IRMVerifiedHonest(p,n_3)) ==> inj-event(UserStartsReg(p,n_3)) is true.
+
+--------------------------------------------------------------
+
+
+--- stderr ---

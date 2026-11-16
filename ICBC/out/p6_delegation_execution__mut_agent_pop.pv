@@ -1,0 +1,230 @@
+(* =====================================================================
+   P6: Delegation management and zero-trust execution
+   Thesis Sec 6.6 / prototype: /protocol6/delegate, /protocol6/revoke-
+   delegation, /protocol6/execute-trade,
+   DelegationRegistry.{setPermission, revokePermission, checkPermission},
+   AgentWallet.executeTrade
+   Tool: ProVerif 2.05      Run: proverif p6_delegation_execution.pv
+   ---------------------------------------------------------------------
+   Modelled exactly as the deployed contracts behave:
+   - permissions are keyed by (msg.sender, agent); revokePermission only
+     touches the caller's own entry (S8).
+   - AgentWallet first asks AgentRegistry.isAgentOf(msg.sender, owner):
+     the caller must be a registered agent whose key signed its binding
+     to this owner (agent_registered, agent_pop), then asks
+     checkPermission(owner, msg.sender, amount), where owner is fixed at
+     deployment (wallet_owner).
+   - Owner DID control (AgentRegistry -> DIDRegistry) is verified in P2;
+     here the owner is identified directly by its wallet key.
+   Threat model:
+   - Dolev-Yao on c; the attacker can generate its own keys and send its
+     own setPermission / executeTrade transactions.
+   - Fully attacker-steered agents: the attacker chooses every trade an
+     honest agent submits (prompt injection, or any caller of the
+     unauthenticated /protocol6/execute-trade endpoint).
+   - Leaked agents: some agents the owner delegates to have their keys
+     published (event Compromised).
+   - Key-reuse oracle on every honest key.
+   Time abstraction (phases):
+   - phase 0: delegations, revocations and trades.
+   - phase 1: every phase-0 delegation has passed its expiry and every
+     revocation tx is mined; the registry answers Expired / Revoked.
+   Out of ProVerif scope (see README, Foundry invariants): the amount <=
+   limit arithmetic (S7) and Ethereum tx-nonce replay protection.
+   ===================================================================== *)
+
+free c: channel.
+free permA: channel [private].   (* trusted read of registry storage *)
+
+type skey.
+type pkey.
+type tag.
+
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; checksign(sign(m, k), pk(k)) = m.
+reduc forall m: bitstring, k: skey; getmess(sign(m, k)) = m.
+
+const tTx: tag.
+const tPoP: tag.     (* agent binding signature, AgentRegistry.BINDING_TAG *)
+const addrDeleg, addrWallet, addrAgentReg: bitstring.
+const selSet, selRevoke, selTrade, selRegAgent: bitstring.
+const activeSt, expiredSt, revokedSt: bitstring.
+
+free skO: skey [private].    (* AgentWallet owner (Anvil account 0 in the prototype) *)
+
+table delegatable(pkey).
+table agentKeyT(skey).
+table delegT(pkey, pkey, bitstring).   (* owner, agent, limit *)
+table revT(pkey, pkey).
+table boundT(pkey, pkey).               (* owner, agent: AgentRegistry binding *)
+
+event HonestAgent(pkey).
+event Compromised(pkey).
+event OwnerDelegates(pkey, pkey, bitstring).
+event Delegated(pkey, pkey, bitstring).
+event OwnerRevokes(pkey, pkey).
+event DelegRevoked(pkey, pkey).
+event AgentRequests(pkey, bitstring, bitstring).          (* agent, amount, tx id *)
+event Executed(pkey, pkey, bitstring, bitstring, bitstring). (* owner, agent, amount, limit, tx id *)
+event ExecutedP1(pkey, pkey, bitstring).
+event AgentConsents(pkey, pkey).        (* agent, owner *)
+event AgentBound(pkey, pkey).           (* owner, agent *)
+
+(* ---------------- Sanity. EXPECT: false = reachable ------------------ *)
+query o: pkey, a: pkey, amt: bitstring, lim: bitstring, tn: bitstring;
+  event(Executed(o, a, amt, lim, tn)) && event(HonestAgent(a)) ==> false.
+query a: pkey; event(DelegRevoked(pk(skO), a)).
+
+(* ---------------- Secrecy. EXPECT: true ------------------------------ *)
+query attacker(skO).
+query secret skAgent.
+query secret skUnreg.
+
+(* ---------------- D1 (S6/S7 authorisation part): every trade out of the
+   owner's wallet is covered by a delegation the owner issued to that
+   agent. EXPECT: true ------------------------------------------------ *)
+query o: pkey, a: pkey, amt: bitstring, lim: bitstring, tn: bitstring;
+  event(Executed(o, a, amt, lim, tn)) ==> event(OwnerDelegates(o, a, lim)).
+
+(* ---------------- D2: every trade was requested by the delegated agent
+   key (or that key leaked). EXPECT: true ------------------------------ *)
+query o: pkey, a: pkey, amt: bitstring, lim: bitstring, tn: bitstring;
+  event(Executed(o, a, amt, lim, tn)) ==> event(AgentRequests(a, amt, tn)) || event(Compromised(a)).
+
+(* ---------------- D3 (S8): only the owner can revoke its delegations.
+   EXPECT: true ------------------------------------------------------- *)
+query a: pkey;
+  event(DelegRevoked(pk(skO), a)) ==> event(OwnerRevokes(pk(skO), a)).
+
+(* ---------------- D5 (S10): delegation alone is not enough; every trade
+   comes from an agent identity registered and bound to the owner.
+   EXPECT: true ------------------------------------------------------- *)
+query o: pkey, a: pkey, amt: bitstring, lim: bitstring, tn: bitstring;
+  event(Executed(o, a, amt, lim, tn)) ==> event(AgentBound(o, a)).
+
+(* ---------------- D6 (S11): an honest agent key is bound only to an
+   owner it signed a binding for. EXPECT: true ------------------------ *)
+query o: pkey, a: pkey;
+  event(AgentBound(o, a)) && event(HonestAgent(a)) ==> event(AgentConsents(a, o)).
+
+(* ---------------- D4 (S6 + S9): no trade executes once delegations are
+   revoked or expired, even with leaked agent keys and replayed
+   transactions. EXPECT: true ------------------------------------------ *)
+query o: pkey, a: pkey, amt: bitstring;
+  event(ExecutedP1(o, a, amt)).
+
+(* ===================================================================== *)
+
+let KeyReuseOracle(sk: skey) =
+    (!in(c, (t: tag, m: bitstring));
+       if t <> tTx && t <> tPoP then out(c, sign((t, m), sk)))
+  | (!in(c, (dest: bitstring, call: bitstring));
+       if dest <> addrDeleg && dest <> addrWallet && dest <> addrAgentReg then out(c, sign((tTx, (dest, call)), sk))).
+
+(* ---- AgentRegistry.sol: registerAgent with agent proof of possession ---- *)
+let AgentRegistry =
+  in(c, (sender: pkey, stx: bitstring));
+  let (=tTx, (=addrAgentReg, (=selRegAgent, agent: pkey, pop: bitstring))) = getmess(stx) in
+  (*CHK:tx_sig*) if checksign(stx, sender) = getmess(stx) then
+  if true then
+  event AgentBound(sender, agent);
+  insert boundT(sender, agent).
+
+(* ---- DelegationRegistry.sol ---- *)
+let RegistrySet =
+  in(c, (sender: pkey, stx: bitstring));
+  let (=tTx, (=addrDeleg, (=selSet, agent: pkey, lim: bitstring))) = getmess(stx) in
+  (*CHK:tx_sig*) if checksign(stx, sender) = getmess(stx) then
+  event Delegated(sender, agent, lim);
+  insert delegT(sender, agent, lim).
+
+let RegistryRevoke =
+  in(c, (sender: pkey, stx: bitstring));
+  let (=tTx, (=addrDeleg, (=selRevoke, agent: pkey))) = getmess(stx) in
+  (*CHK:tx_sig*) if checksign(stx, sender) = getmess(stx) then
+  get delegT(=sender, =agent, lim: bitstring) in
+  event DelegRevoked(sender, agent);
+  insert revT(sender, agent).
+
+let PermStateP0 =
+  !get delegT(o: pkey, a: pkey, lim: bitstring) in out(permA, (o, a, lim, activeSt)).
+
+let PermStateP1 =
+    (!get delegT(o: pkey, a: pkey, lim: bitstring) in out(permA, (o, a, lim, expiredSt)))
+  | (!get revT(o: pkey, a: pkey) in get delegT(=o, =a, lim: bitstring) in out(permA, (o, a, lim, revokedSt))).
+
+(* ---- AgentWallet.sol: checkPermission(owner, msg.sender, amount) ---- *)
+let Wallet(pkOwner: pkey) =
+  in(c, (sender: pkey, stx: bitstring));
+  let (=tTx, (=addrWallet, (=selTrade, dest: bitstring, amt: bitstring, tn: bitstring))) = getmess(stx) in
+  (*CHK:tx_sig*) if checksign(stx, sender) = getmess(stx) then
+  (*CHK:agent_registered*) get boundT(=pkOwner, =sender) in
+  in(permA, (o: pkey, =sender, lim: bitstring, st: bitstring));
+  (*CHK:wallet_owner*) if o = pkOwner then
+  (*CHK:perm_active*) if st = activeSt then
+  event Executed(pkOwner, sender, amt, lim, tn).
+
+let WalletP1(pkOwner: pkey) =
+  in(c, (sender: pkey, stx: bitstring));
+  let (=tTx, (=addrWallet, (=selTrade, dest: bitstring, amt: bitstring, tn: bitstring))) = getmess(stx) in
+  (*CHK:tx_sig*) if checksign(stx, sender) = getmess(stx) then
+  (*CHK:agent_registered*) get boundT(=pkOwner, =sender) in
+  in(permA, (o: pkey, =sender, lim: bitstring, st: bitstring));
+  (*CHK:wallet_owner*) if o = pkOwner then
+  (*CHK:perm_active*) if st = activeSt then
+  event ExecutedP1(pkOwner, sender, amt).
+
+(* ---- Agent: signs whatever trade the attacker asks for ---- *)
+let AgentTrades(skA: skey) =
+  !in(c, (dest: bitstring, amt: bitstring));
+  new tn: bitstring;
+  event AgentRequests(pk(skA), amt, tn);
+  out(c, (pk(skA), sign((tTx, (addrWallet, (selTrade, dest, amt, tn))), skA))).
+
+(* ---- Human owner ---- *)
+let Owner =
+    (!in(c, (a: pkey, pop: bitstring));
+       if checksign(pop, a) = (tPoP, pk(skO)) then
+       out(c, (pk(skO), sign((tTx, (addrAgentReg, (selRegAgent, a, pop))), skO))))
+  | (!get delegatable(a: pkey) in
+       new lim: bitstring;
+       event OwnerDelegates(pk(skO), a, lim);
+       out(c, (pk(skO), sign((tTx, (addrDeleg, (selSet, a, lim))), skO))))
+  | (!get delegatable(a: pkey) in
+       event OwnerRevokes(pk(skO), a);
+       out(c, (pk(skO), sign((tTx, (addrDeleg, (selRevoke, a))), skO)))).
+
+process
+  out(c, pk(skO));
+  (
+    Owner
+  | KeyReuseOracle(skO)
+  | (!RegistrySet)
+  | (!RegistryRevoke)
+  | PermStateP0
+  | (!Wallet(pk(skO)))
+  | (!AgentRegistry)
+  | (!new skAgent: skey;
+       event HonestAgent(pk(skAgent));
+       insert delegatable(pk(skAgent));
+       insert agentKeyT(skAgent);
+       out(c, pk(skAgent));
+       event AgentConsents(pk(skAgent), pk(skO));
+       out(c, (pk(skAgent), sign((tPoP, pk(skO)), skAgent)));
+       (AgentTrades(skAgent) | KeyReuseOracle(skAgent)))
+  | (!new skUnreg: skey;
+       event HonestAgent(pk(skUnreg));
+       insert delegatable(pk(skUnreg));
+       insert agentKeyT(skUnreg);
+       out(c, pk(skUnreg));
+       (AgentTrades(skUnreg) | KeyReuseOracle(skUnreg)))
+  | (!new skL: skey;
+       event Compromised(pk(skL));
+       insert delegatable(pk(skL));
+       out(c, skL))
+  | (phase 1;
+       ( PermStateP1
+       | (!WalletP1(pk(skO)))
+       | (!get agentKeyT(skAg: skey) in AgentTrades(skAg)) ))
+  )

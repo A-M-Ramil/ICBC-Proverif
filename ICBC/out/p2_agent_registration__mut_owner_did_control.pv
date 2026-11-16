@@ -1,0 +1,116 @@
+(* =====================================================================
+   P2: AI Agent Identity Registration (REG_AI)
+   Thesis Sec 6.2 / prototype: verifier backend /protocol2/register-abcd
+   + AgentRegistry.registerAgent -> DIDRegistry.verifyOwnership
+   Tool: ProVerif 2.05      Run: proverif p2_agent_registration.pv
+   ---------------------------------------------------------------------
+   Threat model: as P1 (Dolev-Yao on c, attacker-generated identities,
+   key-reuse oracle on every honest key).
+   What is checked by the deployed contract:
+     owner_did_control  require(didRegistry.verifyOwnership(ownerDID,
+                        msg.sender))   -> rig scenario S3
+   Design extension (NOT in the current AgentRegistry.sol, see README):
+     agent_pop          the agent key signs (ownerDID, modelHash) and the
+                        contract checks it, binding Layer C (agent key /
+                        address) to Layer A (model hash) and the owner.
+   Abstractions: model-provenance service (M3-M4) and IPFS agent doc are
+   omitted; modelHash = h(modelWeights).
+   ===================================================================== *)
+
+free c: channel.
+
+type skey.
+type pkey.
+type tag.
+
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; checksign(sign(m, k), pk(k)) = m.
+reduc forall m: bitstring, k: skey; getmess(sign(m, k)) = m.
+fun h(bitstring): bitstring.
+fun didOf(pkey): bitstring.
+
+const tPoP: tag.   (* agent proof of possession over (ownerDID, modelHash) *)
+const tTx: tag.
+const addrDID, addrAgent: bitstring.
+const selRegisterDID, selRegisterAgent: bitstring.
+
+table didOwner(bitstring, pkey).
+
+event HonestOwner(pkey).
+event HonestAgent(pkey).
+event OwnerRegistersAgent(bitstring, bitstring, bitstring).  (* ownerDID, agentDID, modelHash *)
+event AgentConsents(pkey, bitstring, bitstring).            (* agentPk, ownerDID, modelHash *)
+event AgentRegistered(bitstring, bitstring, bitstring).      (* agentDID, ownerDID, modelHash *)
+
+(* ---------------- Sanity. EXPECT: false = reachable ------------------ *)
+query p: pkey, a: bitstring, m: bitstring;
+  event(AgentRegistered(a, didOf(p), m)) && event(HonestOwner(p)) ==> false.
+
+(* ---------------- Secrecy. EXPECT: true ------------------------------ *)
+query secret skOwner.
+query secret skA.
+
+(* ---------------- B1 (S3): only the controller of ownerDID can bind an
+   agent and a model hash to it. EXPECT: true -------------------------- *)
+query p: pkey, a: bitstring, m: bitstring;
+  event(AgentRegistered(a, didOf(p), m)) && event(HonestOwner(p))
+  ==> event(OwnerRegistersAgent(didOf(p), a, m)).
+
+(* ---------------- B2 (design extension): an honest agent key cannot be
+   registered under an owner / model hash it did not consent to.
+   EXPECT: true (false if the agent_pop check is removed) -------------- *)
+query pa: pkey, o: bitstring, m: bitstring;
+  event(AgentRegistered(didOf(pa), o, m)) && event(HonestAgent(pa))
+  ==> event(AgentConsents(pa, o, m)).
+
+(* ===================================================================== *)
+
+let KeyReuseOracle(sk: skey) =
+    (!in(c, (t: tag, m: bitstring));
+       if t <> tPoP && t <> tTx then out(c, sign((t, m), sk)))
+  | (!in(c, (dest: bitstring, call: bitstring));
+       if dest <> addrDID && dest <> addrAgent then out(c, sign((tTx, (dest, call)), sk))).
+
+let DIDRegistry =
+  in(c, (sender: pkey, stx: bitstring));
+  let (=tTx, (=addrDID, (=selRegisterDID, did: bitstring))) = checksign(stx, sender) in
+  if did = didOf(sender) then
+  insert didOwner(did, sender).
+
+let AgentRegistry =
+  in(c, (sender: pkey, stx: bitstring));
+  let (=tTx, (=addrAgent, (=selRegisterAgent, didA: bitstring, didO: bitstring, mh: bitstring, pkA: pkey, pop: bitstring))) = checksign(stx, sender) in
+  if true then
+  (*CHK:agent_pop*) if checksign(pop, pkA) = (tPoP, (didO, mh)) && didA = didOf(pkA) then
+  event AgentRegistered(didA, didO, mh).
+
+let Owner(skO: skey) =
+  let pkO = pk(skO) in
+  let didO = didOf(pkO) in
+  event HonestOwner(pkO);
+  out(c, pkO);
+  out(c, (pkO, sign((tTx, (addrDID, (selRegisterDID, didO))), skO)));
+  !(
+    new skA: skey;                 (* generated in the owner's TEE/HSM *)
+    new modelWeights: bitstring;
+    let pkA = pk(skA) in
+    let mh = h(modelWeights) in
+    let didA = didOf(pkA) in
+    event HonestAgent(pkA);
+    out(c, pkA);
+    (
+      ( event AgentConsents(pkA, didO, mh);
+        let pop = sign((tPoP, (didO, mh)), skA) in
+        event OwnerRegistersAgent(didO, didA, mh);
+        out(c, (pkO, sign((tTx, (addrAgent, (selRegisterAgent, didA, didO, mh, pkA, pop))), skO))) )
+    | KeyReuseOracle(skA)
+    )
+  ).
+
+process
+  (
+    (!DIDRegistry)
+  | (!AgentRegistry)
+  | (!new skOwner: skey; (Owner(skOwner) | KeyReuseOracle(skOwner)))
+  )

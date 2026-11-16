@@ -1,0 +1,383 @@
+Process 0 (that is, the initial process):
+(
+    {1}!
+    {2}in(c, (sender: pkey,stx: bitstring));
+    {3}let (=tTx,(=addrDID,(=selRegisterDID,did: bitstring))) = checksign(stx,sender) in
+    {4}if (did = didOf(sender)) then
+    {5}insert didOwner(did,sender)
+) | (
+    {6}!
+    {7}in(c, (sender_1: pkey,stx_1: bitstring));
+    {8}let (=tTx,(=addrAgent,(=selRegisterAgent,didA: bitstring,didO: bitstring,mh: bitstring,pkA: pkey,pop: bitstring))) = checksign(stx_1,sender_1) in
+    {9}if ((checksign(pop,pkA) = (tPoP,(didO,mh))) && (didA = didOf(pkA))) then
+    {10}event AgentRegistered(didA,didO,mh)
+) | (
+    {11}!
+    {12}new skOwner: skey;
+    (
+        {13}let skO: skey = skOwner in
+        {14}let pkO: pkey = pk(skO) in
+        {15}let didO_1: bitstring = didOf(pkO) in
+        {16}event HonestOwner(pkO);
+        {17}out(c, pkO);
+        {18}out(c, (pkO,sign((tTx,(addrDID,(selRegisterDID,didO_1))),skO)));
+        {19}!
+        {20}new skA: skey;
+        {21}new modelWeights: bitstring;
+        {22}let pkA_1: pkey = pk(skA) in
+        {23}let mh_1: bitstring = h(modelWeights) in
+        {24}let didA_1: bitstring = didOf(pkA_1) in
+        {25}event HonestAgent(pkA_1);
+        {26}out(c, pkA_1);
+        (
+            {27}event AgentConsents(pkA_1,didO_1,mh_1);
+            {28}let pop_1: bitstring = sign((tPoP,(didO_1,mh_1)),skA) in
+            {29}event OwnerRegistersAgent(didO_1,didA_1,mh_1);
+            {30}out(c, (pkO,sign((tTx,(addrAgent,(selRegisterAgent,didA_1,didO_1,mh_1,pkA_1,pop_1))),skO)))
+        ) | (
+            {31}let sk: skey = skA in
+            (
+                {32}!
+                {33}in(c, (t: tag,m: bitstring));
+                {34}if ((t ≠ tPoP) && (t ≠ tTx)) then
+                {35}out(c, sign((t,m),sk))
+            ) | (
+                {36}!
+                {37}in(c, (dest: bitstring,call: bitstring));
+                {38}if ((dest ≠ addrDID) && (dest ≠ addrAgent)) then
+                {39}out(c, sign((tTx,(dest,call)),sk))
+            )
+        )
+    ) | (
+        {40}let sk_1: skey = skOwner in
+        (
+            {41}!
+            {42}in(c, (t_1: tag,m_1: bitstring));
+            {43}if ((t_1 ≠ tPoP) && (t_1 ≠ tTx)) then
+            {44}out(c, sign((t_1,m_1),sk_1))
+        ) | (
+            {45}!
+            {46}in(c, (dest_1: bitstring,call_1: bitstring));
+            {47}if ((dest_1 ≠ addrDID) && (dest_1 ≠ addrAgent)) then
+            {48}out(c, sign((tTx,(dest_1,call_1)),sk_1))
+        )
+    )
+)
+
+--  Process 1 (that is, process 0, encoded for secret skA, secret skOwner, with let moved downwards):
+(
+    {1}!
+    {2}in(c, (sender: pkey,stx: bitstring));
+    {3}let (=tTx,(=addrDID,(=selRegisterDID,did: bitstring))) = checksign(stx,sender) in
+    {4}if (did = didOf(sender)) then
+    {5}insert didOwner(did,sender)
+) | (
+    {6}!
+    {7}in(c, (sender_1: pkey,stx_1: bitstring));
+    {8}let (=tTx,(=addrAgent,(=selRegisterAgent,didA: bitstring,didO: bitstring,mh: bitstring,pkA: pkey,pop: bitstring))) = checksign(stx_1,sender_1) in
+    {9}if ((checksign(pop,pkA) = (tPoP,(didO,mh))) && (didA = didOf(pkA))) then
+    {10}event AgentRegistered(didA,didO,mh)
+) | (
+    {11}!
+    {12}new skOwner: skey;
+    {13}event skOwner_contains(skOwner);
+    (
+        {14}let skO: skey = skOwner in
+        {15}let pkO: pkey = pk(skO) in
+        {17}event HonestOwner(pkO);
+        {18}out(c, pkO);
+        {16}let didO_1: bitstring = didOf(pkO) in
+        {19}out(c, (pkO,sign((tTx,(addrDID,(selRegisterDID,didO_1))),skO)));
+        {20}!
+        {21}new skA: skey;
+        {22}event skA_contains(skA);
+        {23}new modelWeights: bitstring;
+        {24}let pkA_1: pkey = pk(skA) in
+        {27}event HonestAgent(pkA_1);
+        {28}out(c, pkA_1);
+        (
+            {25}let mh_1: bitstring = h(modelWeights) in
+            {29}event AgentConsents(pkA_1,didO_1,mh_1);
+            {26}let didA_1: bitstring = didOf(pkA_1) in
+            {31}event OwnerRegistersAgent(didO_1,didA_1,mh_1);
+            {30}let pop_1: bitstring = sign((tPoP,(didO_1,mh_1)),skA) in
+            {32}out(c, (pkO,sign((tTx,(addrAgent,(selRegisterAgent,didA_1,didO_1,mh_1,pkA_1,pop_1))),skO)))
+        ) | (
+            {33}let sk: skey = skA in
+            (
+                {34}!
+                {35}in(c, (t: tag,m: bitstring));
+                {36}if ((t ≠ tPoP) && (t ≠ tTx)) then
+                {37}out(c, sign((t,m),sk))
+            ) | (
+                {38}!
+                {39}in(c, (dest: bitstring,call: bitstring));
+                {40}if ((dest ≠ addrDID) && (dest ≠ addrAgent)) then
+                {41}out(c, sign((tTx,(dest,call)),sk))
+            )
+        )
+    ) | (
+        {42}let sk_1: skey = skOwner in
+        (
+            {43}!
+            {44}in(c, (t_1: tag,m_1: bitstring));
+            {45}if ((t_1 ≠ tPoP) && (t_1 ≠ tTx)) then
+            {46}out(c, sign((t_1,m_1),sk_1))
+        ) | (
+            {47}!
+            {48}in(c, (dest_1: bitstring,call_1: bitstring));
+            {49}if ((dest_1 ≠ addrDID) && (dest_1 ≠ addrAgent)) then
+            {50}out(c, sign((tTx,(dest_1,call_1)),sk_1))
+        )
+    )
+)
+
+-- Query not (event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not (event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p)))
+goal reachable: event(AgentRegistered(didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1))) && event(HonestOwner(pk(skOwner_1)))
+Abbreviations:
+skA_1 = skA[!2 = @sid,!1 = @sid_1]
+skOwner_1 = skOwner[!1 = @sid_1]
+modelWeights_1 = modelWeights[!2 = @sid,!1 = @sid_1]
+
+Derivation:
+Abbreviations:
+skA_1 = skA[!2 = @sid,!1 = @sid_1]
+skOwner_1 = skOwner[!1 = @sid_1]
+modelWeights_1 = modelWeights[!2 = @sid,!1 = @sid_1]
+
+1. Event HonestOwner(pk(skOwner_1)) may be executed at {17}.
+event(HonestOwner(pk(skOwner_1))).
+
+2. The message (pk(skOwner_1),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1)) may be sent to the attacker at output {32}.
+attacker((pk(skOwner_1),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1))).
+
+3. By 2, the attacker may know (pk(skOwner_1),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1)).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1).
+attacker(sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1)).
+
+4. The message pk(skOwner_1) may be sent to the attacker at output {18}.
+attacker(pk(skOwner_1)).
+
+5. By 4, the attacker may know pk(skOwner_1).
+By 3, the attacker may know sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1).
+Using the function 2-tuple the attacker may obtain (pk(skOwner_1),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1)).
+attacker((pk(skOwner_1),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1))).
+
+6. The message (pk(skOwner_1),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1),pk(skA_1),sign((tPoP,(didOf(pk(skOwner_1)),h(modelWeights_1))),skA_1)))),skOwner_1)) that the attacker may have by 5 may be received at input {7}.
+So event AgentRegistered(didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1)) may be executed at {10}.
+event(AgentRegistered(didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1))).
+
+7. By 6, event(AgentRegistered(didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1))).
+By 1, event(HonestOwner(pk(skOwner_1))).
+The goals are reached, combined in the following fact:
+event(AgentRegistered(didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1))) && event(HonestOwner(pk(skOwner_1))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new skOwner: skey creating skOwner_2 at {12} in copy a
+
+event skOwner_contains(skOwner_2) at {13} in copy a
+
+event HonestOwner(pk(skOwner_2)) at {17} in copy a (goal)
+
+out(c, ~M) with ~M = pk(skOwner_2) at {18} in copy a
+
+out(c, (~M_1,~M_2)) with ~M_1 = pk(skOwner_2), ~M_2 = sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skOwner_2))))),skOwner_2) at {19} in copy a
+
+new skA: skey creating skA_2 at {21} in copy a, a_1
+
+event skA_contains(skA_2) at {22} in copy a, a_1
+
+new modelWeights: bitstring creating modelWeights_2 at {23} in copy a, a_1
+
+event HonestAgent(pk(skA_2)) at {27} in copy a, a_1
+
+out(c, ~M_3) with ~M_3 = pk(skA_2) at {28} in copy a, a_1
+
+event AgentConsents(pk(skA_2),didOf(pk(skOwner_2)),h(modelWeights_2)) at {29} in copy a, a_1
+
+event OwnerRegistersAgent(didOf(pk(skOwner_2)),didOf(pk(skA_2)),h(modelWeights_2)) at {31} in copy a, a_1
+
+out(c, (~M_4,~M_5)) with ~M_4 = pk(skOwner_2), ~M_5 = sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_2)),didOf(pk(skOwner_2)),h(modelWeights_2),pk(skA_2),sign((tPoP,(didOf(pk(skOwner_2)),h(modelWeights_2))),skA_2)))),skOwner_2) at {32} in copy a, a_1
+
+in(c, (~M,~M_5)) with ~M = pk(skOwner_2), ~M_5 = sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(skA_2)),didOf(pk(skOwner_2)),h(modelWeights_2),pk(skA_2),sign((tPoP,(didOf(pk(skOwner_2)),h(modelWeights_2))),skA_2)))),skOwner_2) at {7} in copy a_2
+
+event AgentRegistered(didOf(pk(skA_2)),didOf(pk(skOwner_2)),h(modelWeights_2)) at {10} in copy a_2 (goal)
+
+The event AgentRegistered(didOf(pk(skA_2)),didOf(pk(skOwner_2)),h(modelWeights_2)) is executed at {10} in copy a_2.
+The event HonestOwner(pk(skOwner_2)) is executed at {17} in copy a.
+A trace has been found.
+RESULT not (event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p))) is false.
+-- Query secret skOwner encoded as not (event(skOwner_contains(v)) && attacker(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query secret skOwner
+RESULT secret skOwner is true.
+-- Query secret skA encoded as not (event(skA_contains(v)) && attacker(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query secret skA
+RESULT secret skA is true.
+-- Query event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p)) ==> event(OwnerRegistersAgent(didOf(p),a,m_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p)) ==> event(OwnerRegistersAgent(didOf(p),a,m_2))
+goal reachable: attacker(m_2) && attacker(k) -> event(AgentRegistered(didOf(pk(k)),didOf(pk(skOwner_1)),m_2)) && event(HonestOwner(pk(skOwner_1)))
+Abbreviations:
+skOwner_1 = skOwner[!1 = @sid]
+
+Derivation:
+Abbreviations:
+skOwner_1 = skOwner[!1 = @sid]
+
+1. Event HonestOwner(pk(skOwner_1)) may be executed at {17}.
+event(HonestOwner(pk(skOwner_1))).
+
+2. The attacker has some term k.
+attacker(k).
+
+3. We assume as hypothesis that
+attacker(k_1).
+
+4. We assume as hypothesis that
+attacker(m_2).
+
+5. The message pk(skOwner_1) may be sent to the attacker at output {18}.
+attacker(pk(skOwner_1)).
+
+6. By 5, the attacker may know pk(skOwner_1).
+Using the function didOf the attacker may obtain didOf(pk(skOwner_1)).
+attacker(didOf(pk(skOwner_1))).
+
+7. By 6, the attacker may know didOf(pk(skOwner_1)).
+By 4, the attacker may know m_2.
+Using the function 2-tuple the attacker may obtain (didOf(pk(skOwner_1)),m_2).
+attacker((didOf(pk(skOwner_1)),m_2)).
+
+8. Using the function tPoP the attacker may obtain tPoP.
+attacker(tPoP).
+
+9. By 8, the attacker may know tPoP.
+By 7, the attacker may know (didOf(pk(skOwner_1)),m_2).
+Using the function 2-tuple the attacker may obtain (tPoP,(didOf(pk(skOwner_1)),m_2)).
+attacker((tPoP,(didOf(pk(skOwner_1)),m_2))).
+
+10. By 9, the attacker may know (tPoP,(didOf(pk(skOwner_1)),m_2)).
+By 3, the attacker may know k_1.
+Using the function sign the attacker may obtain sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1).
+attacker(sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)).
+
+11. By 3, the attacker may know k_1.
+Using the function pk the attacker may obtain pk(k_1).
+attacker(pk(k_1)).
+
+12. By 11, the attacker may know pk(k_1).
+Using the function didOf the attacker may obtain didOf(pk(k_1)).
+attacker(didOf(pk(k_1))).
+
+13. Using the function selRegisterAgent the attacker may obtain selRegisterAgent.
+attacker(selRegisterAgent).
+
+14. By 13, the attacker may know selRegisterAgent.
+By 12, the attacker may know didOf(pk(k_1)).
+By 6, the attacker may know didOf(pk(skOwner_1)).
+By 4, the attacker may know m_2.
+By 11, the attacker may know pk(k_1).
+By 10, the attacker may know sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1).
+Using the function 6-tuple the attacker may obtain (selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)).
+attacker((selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1))).
+
+15. Using the function addrAgent the attacker may obtain addrAgent.
+attacker(addrAgent).
+
+16. By 15, the attacker may know addrAgent.
+By 14, the attacker may know (selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)).
+Using the function 2-tuple the attacker may obtain (addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1))).
+attacker((addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))).
+
+17. Using the function tTx the attacker may obtain tTx.
+attacker(tTx).
+
+18. By 17, the attacker may know tTx.
+By 16, the attacker may know (addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1))).
+Using the function 2-tuple the attacker may obtain (tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))).
+attacker((tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1))))).
+
+19. By 18, the attacker may know (tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))).
+By 2, the attacker may know k.
+Using the function sign the attacker may obtain sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))),k).
+attacker(sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))),k)).
+
+20. By 2, the attacker may know k.
+Using the function pk the attacker may obtain pk(k).
+attacker(pk(k)).
+
+21. By 20, the attacker may know pk(k).
+By 19, the attacker may know sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))),k).
+Using the function 2-tuple the attacker may obtain (pk(k),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))),k)).
+attacker((pk(k),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))),k))).
+
+22. The message (pk(k),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2,pk(k_1),sign((tPoP,(didOf(pk(skOwner_1)),m_2)),k_1)))),k)) that the attacker may have by 21 may be received at input {7}.
+So event AgentRegistered(didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2) may be executed at {10}.
+event(AgentRegistered(didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2)).
+
+23. By 22, event(AgentRegistered(didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2)).
+By 1, event(HonestOwner(pk(skOwner_1))).
+The goals are reached, combined in the following fact:
+event(AgentRegistered(didOf(pk(k_1)),didOf(pk(skOwner_1)),m_2)) && event(HonestOwner(pk(skOwner_1))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new skOwner: skey creating skOwner_2 at {12} in copy a
+
+event skOwner_contains(skOwner_2) at {13} in copy a
+
+event HonestOwner(pk(skOwner_2)) at {17} in copy a (goal)
+
+out(c, ~M) with ~M = pk(skOwner_2) at {18} in copy a
+
+out(c, (~M_1,~M_2)) with ~M_1 = pk(skOwner_2), ~M_2 = sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skOwner_2))))),skOwner_2) at {19} in copy a
+
+in(c, (pk(a_1),sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(a_2)),didOf(~M),a_3,pk(a_2),sign((tPoP,(didOf(~M),a_3)),a_2)))),a_1))) with sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(a_2)),didOf(~M),a_3,pk(a_2),sign((tPoP,(didOf(~M),a_3)),a_2)))),a_1) = sign((tTx,(addrAgent,(selRegisterAgent,didOf(pk(a_2)),didOf(pk(skOwner_2)),a_3,pk(a_2),sign((tPoP,(didOf(pk(skOwner_2)),a_3)),a_2)))),a_1) at {7} in copy a_4
+
+event AgentRegistered(didOf(pk(a_2)),didOf(pk(skOwner_2)),a_3) at {10} in copy a_4 (goal)
+
+The event AgentRegistered(didOf(pk(a_2)),didOf(pk(skOwner_2)),a_3) is executed at {10} in copy a_4.
+The event HonestOwner(pk(skOwner_2)) is executed at {17} in copy a.
+A trace has been found.
+RESULT event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p)) ==> event(OwnerRegistersAgent(didOf(p),a,m_2)) is false.
+-- Query event(AgentRegistered(didOf(pa),o,m_2)) && event(HonestAgent(pa)) ==> event(AgentConsents(pa,o,m_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(AgentRegistered(didOf(pa),o,m_2)) && event(HonestAgent(pa)) ==> event(AgentConsents(pa,o,m_2))
+goal reachable: b-event(AgentConsents(pk(skA_1),didOf(pk(skOwner_1)),h(modelWeights_1))) -> event(AgentRegistered(didOf(pk(skA_1)),didOf(pk(skOwner_1)),h(modelWeights_1))) && event(HonestAgent(pk(skA_1)))
+Abbreviations:
+skA_1 = skA[!2 = @sid,!1 = @sid_1]
+skOwner_1 = skOwner[!1 = @sid_1]
+modelWeights_1 = modelWeights[!2 = @sid,!1 = @sid_1]
+RESULT event(AgentRegistered(didOf(pa),o,m_2)) && event(HonestAgent(pa)) ==> event(AgentConsents(pa,o,m_2)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not (event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p))) is false.
+
+Query secret skOwner is true.
+
+Query secret skA is true.
+
+Query event(AgentRegistered(a,didOf(p),m_2)) && event(HonestOwner(p)) ==> event(OwnerRegistersAgent(didOf(p),a,m_2)) is false.
+
+Query event(AgentRegistered(didOf(pa),o,m_2)) && event(HonestAgent(pa)) ==> event(AgentConsents(pa,o,m_2)) is true.
+
+--------------------------------------------------------------
+
+
+--- stderr ---

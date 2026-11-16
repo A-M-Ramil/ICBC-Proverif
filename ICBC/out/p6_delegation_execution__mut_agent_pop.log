@@ -1,0 +1,829 @@
+Process 0 (that is, the initial process):
+{1}out(c, pk(skO));
+(
+    {2}!
+    {3}in(c, (a: pkey,pop: bitstring));
+    {4}if (checksign(pop,a) = (tPoP,pk(skO))) then
+    {5}out(c, (pk(skO),sign((tTx,(addrAgentReg,(selRegAgent,a,pop))),skO)))
+) | (
+    {6}!
+    {10}get delegatable(a_1: pkey) in
+    {7}new lim: bitstring;
+    {8}event OwnerDelegates(pk(skO),a_1,lim);
+    {9}out(c, (pk(skO),sign((tTx,(addrDeleg,(selSet,a_1,lim))),skO)))
+) | (
+    {11}!
+    {14}get delegatable(a_2: pkey) in
+    {12}event OwnerRevokes(pk(skO),a_2);
+    {13}out(c, (pk(skO),sign((tTx,(addrDeleg,(selRevoke,a_2))),skO)))
+) | (
+    {15}let sk: skey = skO in
+    (
+        {16}!
+        {17}in(c, (t: tag,m: bitstring));
+        {18}if ((t ≠ tTx) && (t ≠ tPoP)) then
+        {19}out(c, sign((t,m),sk))
+    ) | (
+        {20}!
+        {21}in(c, (dest: bitstring,call: bitstring));
+        {22}if ((dest ≠ addrDeleg) && ((dest ≠ addrWallet) && (dest ≠ addrAgentReg))) then
+        {23}out(c, sign((tTx,(dest,call)),sk))
+    )
+) | (
+    {24}!
+    {25}in(c, (sender: pkey,stx: bitstring));
+    {26}let (=tTx,(=addrDeleg,(=selSet,agent: pkey,lim_1: bitstring))) = getmess(stx) in
+    {27}if (checksign(stx,sender) = getmess(stx)) then
+    {28}event Delegated(sender,agent,lim_1);
+    {29}insert delegT(sender,agent,lim_1)
+) | (
+    {30}!
+    {31}in(c, (sender_1: pkey,stx_1: bitstring));
+    {32}let (=tTx,(=addrDeleg,(=selRevoke,agent_1: pkey))) = getmess(stx_1) in
+    {33}if (checksign(stx_1,sender_1) = getmess(stx_1)) then
+    {36}get delegT(=sender_1,=agent_1,lim_2: bitstring) in
+    {34}event DelegRevoked(sender_1,agent_1);
+    {35}insert revT(sender_1,agent_1)
+) | (
+    {37}!
+    {39}get delegT(o: pkey,a_3: pkey,lim_3: bitstring) in
+    {38}out(permA, (o,a_3,lim_3,activeSt))
+) | (
+    {40}!
+    {41}let pkOwner: pkey = pk(skO) in
+    {42}in(c, (sender_2: pkey,stx_2: bitstring));
+    {43}let (=tTx,(=addrWallet,(=selTrade,dest_1: bitstring,amt: bitstring,tn: bitstring))) = getmess(stx_2) in
+    {44}if (checksign(stx_2,sender_2) = getmess(stx_2)) then
+    {49}get boundT(=pkOwner,=sender_2) in
+    {45}in(permA, (o_1: pkey,=sender_2,lim_4: bitstring,st: bitstring));
+    {46}if (o_1 = pkOwner) then
+    {47}if (st = activeSt) then
+    {48}event Executed(pkOwner,sender_2,amt,lim_4,tn)
+) | (
+    {50}!
+    {51}in(c, (sender_3: pkey,stx_3: bitstring));
+    {52}let (=tTx,(=addrAgentReg,(=selRegAgent,agent_2: pkey,pop_1: bitstring))) = getmess(stx_3) in
+    {53}if (checksign(stx_3,sender_3) = getmess(stx_3)) then
+    {54}event AgentBound(sender_3,agent_2);
+    {55}insert boundT(sender_3,agent_2)
+) | (
+    {56}!
+    {57}new skAgent: skey;
+    {58}event HonestAgent(pk(skAgent));
+    {59}insert delegatable(pk(skAgent));
+    {60}insert agentKeyT(skAgent);
+    {61}out(c, pk(skAgent));
+    {62}event AgentConsents(pk(skAgent),pk(skO));
+    {63}out(c, (pk(skAgent),sign((tPoP,pk(skO)),skAgent)));
+    (
+        {64}let skA: skey = skAgent in
+        {65}!
+        {66}in(c, (dest_2: bitstring,amt_1: bitstring));
+        {67}new tn_1: bitstring;
+        {68}event AgentRequests(pk(skA),amt_1,tn_1);
+        {69}out(c, (pk(skA),sign((tTx,(addrWallet,(selTrade,dest_2,amt_1,tn_1))),skA)))
+    ) | (
+        {70}let sk_1: skey = skAgent in
+        (
+            {71}!
+            {72}in(c, (t_1: tag,m_1: bitstring));
+            {73}if ((t_1 ≠ tTx) && (t_1 ≠ tPoP)) then
+            {74}out(c, sign((t_1,m_1),sk_1))
+        ) | (
+            {75}!
+            {76}in(c, (dest_3: bitstring,call_1: bitstring));
+            {77}if ((dest_3 ≠ addrDeleg) && ((dest_3 ≠ addrWallet) && (dest_3 ≠ addrAgentReg))) then
+            {78}out(c, sign((tTx,(dest_3,call_1)),sk_1))
+        )
+    )
+) | (
+    {79}!
+    {80}new skUnreg: skey;
+    {81}event HonestAgent(pk(skUnreg));
+    {82}insert delegatable(pk(skUnreg));
+    {83}insert agentKeyT(skUnreg);
+    {84}out(c, pk(skUnreg));
+    (
+        {85}let skA_1: skey = skUnreg in
+        {86}!
+        {87}in(c, (dest_4: bitstring,amt_2: bitstring));
+        {88}new tn_2: bitstring;
+        {89}event AgentRequests(pk(skA_1),amt_2,tn_2);
+        {90}out(c, (pk(skA_1),sign((tTx,(addrWallet,(selTrade,dest_4,amt_2,tn_2))),skA_1)))
+    ) | (
+        {91}let sk_2: skey = skUnreg in
+        (
+            {92}!
+            {93}in(c, (t_2: tag,m_2: bitstring));
+            {94}if ((t_2 ≠ tTx) && (t_2 ≠ tPoP)) then
+            {95}out(c, sign((t_2,m_2),sk_2))
+        ) | (
+            {96}!
+            {97}in(c, (dest_5: bitstring,call_2: bitstring));
+            {98}if ((dest_5 ≠ addrDeleg) && ((dest_5 ≠ addrWallet) && (dest_5 ≠ addrAgentReg))) then
+            {99}out(c, sign((tTx,(dest_5,call_2)),sk_2))
+        )
+    )
+) | (
+    {100}!
+    {101}new skL: skey;
+    {102}event Compromised(pk(skL));
+    {103}insert delegatable(pk(skL));
+    {104}out(c, skL)
+) | (
+    {105}phase 1;
+    (
+        {106}!
+        {108}get delegT(o_2: pkey,a_4: pkey,lim_5: bitstring) in
+        {107}out(permA, (o_2,a_4,lim_5,expiredSt))
+    ) | (
+        {109}!
+        {112}get revT(o_3: pkey,a_5: pkey) in
+        {111}get delegT(=o_3,=a_5,lim_6: bitstring) in
+        {110}out(permA, (o_3,a_5,lim_6,revokedSt))
+    ) | (
+        {113}!
+        {114}let pkOwner_1: pkey = pk(skO) in
+        {115}in(c, (sender_4: pkey,stx_4: bitstring));
+        {116}let (=tTx,(=addrWallet,(=selTrade,dest_6: bitstring,amt_3: bitstring,tn_3: bitstring))) = getmess(stx_4) in
+        {117}if (checksign(stx_4,sender_4) = getmess(stx_4)) then
+        {122}get boundT(=pkOwner_1,=sender_4) in
+        {118}in(permA, (o_4: pkey,=sender_4,lim_7: bitstring,st_1: bitstring));
+        {119}if (o_4 = pkOwner_1) then
+        {120}if (st_1 = activeSt) then
+        {121}event ExecutedP1(pkOwner_1,sender_4,amt_3)
+    ) | (
+        {123}!
+        {129}get agentKeyT(skAg: skey) in
+        {124}!
+        {125}in(c, (dest_7: bitstring,amt_4: bitstring));
+        {126}new tn_4: bitstring;
+        {127}event AgentRequests(pk(skAg),amt_4,tn_4);
+        {128}out(c, (pk(skAg),sign((tTx,(addrWallet,(selTrade,dest_7,amt_4,tn_4))),skAg)))
+    )
+)
+
+--  Process 1 (that is, process 0, encoded for secret skUnreg, secret skAgent, with let moved downwards):
+{1}out(c, pk(skO));
+(
+    {2}!
+    {3}in(c, (a: pkey,pop: bitstring));
+    {4}if (checksign(pop,a) = (tPoP,pk(skO))) then
+    {5}out(c, (pk(skO),sign((tTx,(addrAgentReg,(selRegAgent,a,pop))),skO)))
+) | (
+    {6}!
+    {7}get delegatable(a_1: pkey) in
+    {8}new lim: bitstring;
+    {9}event OwnerDelegates(pk(skO),a_1,lim);
+    {10}out(c, (pk(skO),sign((tTx,(addrDeleg,(selSet,a_1,lim))),skO)))
+) | (
+    {11}!
+    {12}get delegatable(a_2: pkey) in
+    {13}event OwnerRevokes(pk(skO),a_2);
+    {14}out(c, (pk(skO),sign((tTx,(addrDeleg,(selRevoke,a_2))),skO)))
+) | (
+    {15}let sk: skey = skO in
+    (
+        {16}!
+        {17}in(c, (t: tag,m: bitstring));
+        {18}if ((t ≠ tTx) && (t ≠ tPoP)) then
+        {19}out(c, sign((t,m),sk))
+    ) | (
+        {20}!
+        {21}in(c, (dest: bitstring,call: bitstring));
+        {22}if ((dest ≠ addrDeleg) && ((dest ≠ addrWallet) && (dest ≠ addrAgentReg))) then
+        {23}out(c, sign((tTx,(dest,call)),sk))
+    )
+) | (
+    {24}!
+    {25}in(c, (sender: pkey,stx: bitstring));
+    {26}let (=tTx,(=addrDeleg,(=selSet,agent: pkey,lim_1: bitstring))) = getmess(stx) in
+    {27}if (checksign(stx,sender) = getmess(stx)) then
+    {28}event Delegated(sender,agent,lim_1);
+    {29}insert delegT(sender,agent,lim_1)
+) | (
+    {30}!
+    {31}in(c, (sender_1: pkey,stx_1: bitstring));
+    {32}let (=tTx,(=addrDeleg,(=selRevoke,agent_1: pkey))) = getmess(stx_1) in
+    {33}if (checksign(stx_1,sender_1) = getmess(stx_1)) then
+    {34}get delegT(=sender_1,=agent_1,lim_2: bitstring) in
+    {35}event DelegRevoked(sender_1,agent_1);
+    {36}insert revT(sender_1,agent_1)
+) | (
+    {37}!
+    {38}get delegT(o: pkey,a_3: pkey,lim_3: bitstring) in
+    {39}out(permA, (o,a_3,lim_3,activeSt))
+) | (
+    {40}!
+    {42}in(c, (sender_2: pkey,stx_2: bitstring));
+    {43}let (=tTx,(=addrWallet,(=selTrade,dest_1: bitstring,amt: bitstring,tn: bitstring))) = getmess(stx_2) in
+    {44}if (checksign(stx_2,sender_2) = getmess(stx_2)) then
+    {41}let pkOwner: pkey = pk(skO) in
+    {45}get boundT(=pkOwner,=sender_2) in
+    {46}in(permA, (o_1: pkey,=sender_2,lim_4: bitstring,st: bitstring));
+    {47}if (o_1 = pkOwner) then
+    {48}if (st = activeSt) then
+    {49}event Executed(pkOwner,sender_2,amt,lim_4,tn)
+) | (
+    {50}!
+    {51}in(c, (sender_3: pkey,stx_3: bitstring));
+    {52}let (=tTx,(=addrAgentReg,(=selRegAgent,agent_2: pkey,pop_1: bitstring))) = getmess(stx_3) in
+    {53}if (checksign(stx_3,sender_3) = getmess(stx_3)) then
+    {54}event AgentBound(sender_3,agent_2);
+    {55}insert boundT(sender_3,agent_2)
+) | (
+    {56}!
+    {57}new skAgent: skey;
+    {58}event skAgent_contains(skAgent);
+    {59}event HonestAgent(pk(skAgent));
+    {60}insert delegatable(pk(skAgent));
+    {61}insert agentKeyT(skAgent);
+    {62}out(c, pk(skAgent));
+    {63}event AgentConsents(pk(skAgent),pk(skO));
+    {64}out(c, (pk(skAgent),sign((tPoP,pk(skO)),skAgent)));
+    (
+        {66}!
+        {67}in(c, (dest_2: bitstring,amt_1: bitstring));
+        {68}new tn_1: bitstring;
+        {65}let skA: skey = skAgent in
+        {69}event AgentRequests(pk(skA),amt_1,tn_1);
+        {70}out(c, (pk(skA),sign((tTx,(addrWallet,(selTrade,dest_2,amt_1,tn_1))),skA)))
+    ) | (
+        {71}let sk_1: skey = skAgent in
+        (
+            {72}!
+            {73}in(c, (t_1: tag,m_1: bitstring));
+            {74}if ((t_1 ≠ tTx) && (t_1 ≠ tPoP)) then
+            {75}out(c, sign((t_1,m_1),sk_1))
+        ) | (
+            {76}!
+            {77}in(c, (dest_3: bitstring,call_1: bitstring));
+            {78}if ((dest_3 ≠ addrDeleg) && ((dest_3 ≠ addrWallet) && (dest_3 ≠ addrAgentReg))) then
+            {79}out(c, sign((tTx,(dest_3,call_1)),sk_1))
+        )
+    )
+) | (
+    {80}!
+    {81}new skUnreg: skey;
+    {82}event skUnreg_contains(skUnreg);
+    {83}event HonestAgent(pk(skUnreg));
+    {84}insert delegatable(pk(skUnreg));
+    {85}insert agentKeyT(skUnreg);
+    {86}out(c, pk(skUnreg));
+    (
+        {88}!
+        {89}in(c, (dest_4: bitstring,amt_2: bitstring));
+        {90}new tn_2: bitstring;
+        {87}let skA_1: skey = skUnreg in
+        {91}event AgentRequests(pk(skA_1),amt_2,tn_2);
+        {92}out(c, (pk(skA_1),sign((tTx,(addrWallet,(selTrade,dest_4,amt_2,tn_2))),skA_1)))
+    ) | (
+        {93}let sk_2: skey = skUnreg in
+        (
+            {94}!
+            {95}in(c, (t_2: tag,m_2: bitstring));
+            {96}if ((t_2 ≠ tTx) && (t_2 ≠ tPoP)) then
+            {97}out(c, sign((t_2,m_2),sk_2))
+        ) | (
+            {98}!
+            {99}in(c, (dest_5: bitstring,call_2: bitstring));
+            {100}if ((dest_5 ≠ addrDeleg) && ((dest_5 ≠ addrWallet) && (dest_5 ≠ addrAgentReg))) then
+            {101}out(c, sign((tTx,(dest_5,call_2)),sk_2))
+        )
+    )
+) | (
+    {102}!
+    {103}new skL: skey;
+    {104}event Compromised(pk(skL));
+    {105}insert delegatable(pk(skL));
+    {106}out(c, skL)
+) | (
+    {107}phase 1;
+    (
+        {108}!
+        {109}get delegT(o_2: pkey,a_4: pkey,lim_5: bitstring) in
+        {110}out(permA, (o_2,a_4,lim_5,expiredSt))
+    ) | (
+        {111}!
+        {112}get revT(o_3: pkey,a_5: pkey) in
+        {113}get delegT(=o_3,=a_5,lim_6: bitstring) in
+        {114}out(permA, (o_3,a_5,lim_6,revokedSt))
+    ) | (
+        {115}!
+        {117}in(c, (sender_4: pkey,stx_4: bitstring));
+        {118}let (=tTx,(=addrWallet,(=selTrade,dest_6: bitstring,amt_3: bitstring,tn_3: bitstring))) = getmess(stx_4) in
+        {119}if (checksign(stx_4,sender_4) = getmess(stx_4)) then
+        {116}let pkOwner_1: pkey = pk(skO) in
+        {120}get boundT(=pkOwner_1,=sender_4) in
+        {121}in(permA, (o_4: pkey,=sender_4,lim_7: bitstring,st_1: bitstring));
+        {122}if (o_4 = pkOwner_1) then
+        {123}if (st_1 = activeSt) then
+        {124}event ExecutedP1(pkOwner_1,sender_4,amt_3)
+    ) | (
+        {125}!
+        {126}get agentKeyT(skAg: skey) in
+        {127}!
+        {128}in(c, (dest_7: bitstring,amt_4: bitstring));
+        {129}new tn_4: bitstring;
+        {130}event AgentRequests(pk(skAg),amt_4,tn_4);
+        {131}out(c, (pk(skAg),sign((tTx,(addrWallet,(selTrade,dest_7,amt_4,tn_4))),skAg)))
+    )
+)
+
+-- Query not (event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) && event(HonestAgent(a_6))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 161 rules (116 with conclusion selected). Queue: 24 rules.
+Starting query not (event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) && event(HonestAgent(a_6)))
+goal reachable: attacker(dest_8) && attacker(amt_5) -> event(Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5)) && event(HonestAgent(pk(skAgent_1)))
+Abbreviations:
+skAgent_1 = skAgent[!1 = @sid]
+lim_8 = lim[a_1 = pk(skAgent_1),!1 = @sid_1]
+tn_5 = tn_1[amt_1 = amt_5,dest_2 = dest_8,!2 = @sid_2,!1 = @sid]
+
+Derivation:
+Abbreviations:
+skAgent_1 = skAgent[!1 = @sid]
+lim_8 = lim[a_1 = pk(skAgent_1),!1 = @sid_1]
+tn_5 = tn_1[amt_1 = amt_5,dest_2 = dest_8,!2 = @sid_2,!1 = @sid]
+
+1. Event HonestAgent(pk(skAgent_1)) may be executed at {59}.
+event(HonestAgent(pk(skAgent_1))).
+
+2. We assume as hypothesis that
+attacker(amt_5).
+
+3. We assume as hypothesis that
+attacker(dest_8).
+
+4. By 3, the attacker may know dest_8.
+By 2, the attacker may know amt_5.
+Using the function 2-tuple the attacker may obtain (dest_8,amt_5).
+attacker((dest_8,amt_5)).
+
+5. The message (dest_8,amt_5) that the attacker may have by 4 may be received at input {67}.
+So the message (pk(skAgent_1),sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1)) may be sent to the attacker at output {70}.
+attacker((pk(skAgent_1),sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1))).
+
+6. By 5, the attacker may know (pk(skAgent_1),sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1)).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1).
+attacker(sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1)).
+
+7. The message pk(skAgent_1) may be sent to the attacker at output {62}.
+attacker(pk(skAgent_1)).
+
+8. By 7, the attacker may know pk(skAgent_1).
+By 6, the attacker may know sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1).
+Using the function 2-tuple the attacker may obtain (pk(skAgent_1),sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1)).
+attacker((pk(skAgent_1),sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1))).
+
+9. The message (pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)) may be sent to the attacker at output {64}.
+attacker((pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1))).
+
+10. By 9, the attacker may know (pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tPoP,pk(skO[])),skAgent_1).
+attacker(sign((tPoP,pk(skO[])),skAgent_1)).
+
+11. By 7, the attacker may know pk(skAgent_1).
+By 10, the attacker may know sign((tPoP,pk(skO[])),skAgent_1).
+Using the function 2-tuple the attacker may obtain (pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)).
+attacker((pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1))).
+
+12. The message (pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)) that the attacker may have by 11 may be received at input {3}.
+So the message (pk(skO[]),sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[])) may be sent to the attacker at output {5}.
+attacker((pk(skO[]),sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[]))).
+
+13. By 12, the attacker may know (pk(skO[]),sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[]).
+attacker(sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[])).
+
+14. The message pk(skO[]) may be sent to the attacker at output {1}.
+attacker(pk(skO[])).
+
+15. By 14, the attacker may know pk(skO[]).
+By 13, the attacker may know sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[]).
+Using the function 2-tuple the attacker may obtain (pk(skO[]),sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[])).
+attacker((pk(skO[]),sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[]))).
+
+16. The message (pk(skO[]),sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_1),sign((tPoP,pk(skO[])),skAgent_1)))),skO[])) that the attacker may have by 15 may be received at input {51}.
+So the entry boundT(pk(skO[]),pk(skAgent_1)) may be inserted in a table at insert {55}.
+table(boundT(pk(skO[]),pk(skAgent_1))).
+
+17. The entry delegatable(pk(skAgent_1)) may be inserted in a table at insert {60}.
+table(delegatable(pk(skAgent_1))).
+
+18. The entry delegatable(pk(skAgent_1)) that may be in a table by 17 may be read at get {7}.
+So the message (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[])) may be sent to the attacker at output {10}.
+attacker((pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[]))).
+
+19. By 18, the attacker may know (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[]).
+attacker(sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[])).
+
+20. By 14, the attacker may know pk(skO[]).
+By 19, the attacker may know sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[]).
+Using the function 2-tuple the attacker may obtain (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[])).
+attacker((pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[]))).
+
+21. The message (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skAgent_1),lim_8))),skO[])) that the attacker may have by 20 may be received at input {25}.
+So the entry delegT(pk(skO[]),pk(skAgent_1),lim_8) may be inserted in a table at insert {29}.
+table(delegT(pk(skO[]),pk(skAgent_1),lim_8)).
+
+22. The entry delegT(pk(skO[]),pk(skAgent_1),lim_8) that may be in a table by 21 may be read at get {38}.
+So the message (pk(skO[]),pk(skAgent_1),lim_8,activeSt) may be sent on channel permA[] at output {39}.
+mess(permA[],(pk(skO[]),pk(skAgent_1),lim_8,activeSt)).
+
+23. The message (pk(skAgent_1),sign((tTx,(addrWallet,(selTrade,dest_8,amt_5,tn_5))),skAgent_1)) that the attacker may have by 8 may be received at input {42}.
+The entry boundT(pk(skO[]),pk(skAgent_1)) that may be in a table by 16 may be read at get {45}.
+The message (pk(skO[]),pk(skAgent_1),lim_8,activeSt) that may be sent on channel permA[] by 22 may be received at input {46}.
+So event Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5) may be executed at {49}.
+event(Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5)).
+
+24. By 23, event(Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5)).
+By 1, event(HonestAgent(pk(skAgent_1))).
+The goals are reached, combined in the following fact:
+event(Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5)) && event(HonestAgent(pk(skAgent_1))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skO) at {1}
+
+new skAgent: skey creating skAgent_2 at {57} in copy a_6
+
+event skAgent_contains(skAgent_2) at {58} in copy a_6
+
+event HonestAgent(pk(skAgent_2)) at {59} in copy a_6 (goal)
+
+insert delegatable(pk(skAgent_2)) at {60} in copy a_6
+
+insert agentKeyT(skAgent_2) at {61} in copy a_6
+
+out(c, ~M_1) with ~M_1 = pk(skAgent_2) at {62} in copy a_6
+
+event AgentConsents(pk(skAgent_2),pk(skO)) at {63} in copy a_6
+
+out(c, (~M_2,~M_3)) with ~M_2 = pk(skAgent_2), ~M_3 = sign((tPoP,pk(skO)),skAgent_2) at {64} in copy a_6
+
+in(c, (~M_1,~M_3)) with ~M_1 = pk(skAgent_2), ~M_3 = sign((tPoP,pk(skO)),skAgent_2) at {3} in copy a_7
+
+out(c, (~M_4,~M_5)) with ~M_4 = pk(skO), ~M_5 = sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_2),sign((tPoP,pk(skO)),skAgent_2)))),skO) at {5} in copy a_7
+
+get delegatable(pk(skAgent_2)) at {7} in copy a_8
+
+new lim: bitstring creating lim_9 at {8} in copy a_8
+
+event OwnerDelegates(pk(skO),pk(skAgent_2),lim_9) at {9} in copy a_8
+
+out(c, (~M_6,~M_7)) with ~M_6 = pk(skO), ~M_7 = sign((tTx,(addrDeleg,(selSet,pk(skAgent_2),lim_9))),skO) at {10} in copy a_8
+
+in(c, (~M,~M_7)) with ~M = pk(skO), ~M_7 = sign((tTx,(addrDeleg,(selSet,pk(skAgent_2),lim_9))),skO) at {25} in copy a_9
+
+event Delegated(pk(skO),pk(skAgent_2),lim_9) at {28} in copy a_9
+
+insert delegT(pk(skO),pk(skAgent_2),lim_9) at {29} in copy a_9
+
+get delegT(pk(skO),pk(skAgent_2),lim_9) at {38} in copy a_10
+
+in(c, (~M,~M_5)) with ~M = pk(skO), ~M_5 = sign((tTx,(addrAgentReg,(selRegAgent,pk(skAgent_2),sign((tPoP,pk(skO)),skAgent_2)))),skO) at {51} in copy a_11
+
+event AgentBound(pk(skO),pk(skAgent_2)) at {54} in copy a_11
+
+insert boundT(pk(skO),pk(skAgent_2)) at {55} in copy a_11
+
+in(c, (a_12,a_13)) at {67} in copy a_6, a_14
+
+new tn_1: bitstring creating tn_6 at {68} in copy a_6, a_14
+
+event AgentRequests(pk(skAgent_2),a_13,tn_6) at {69} in copy a_6, a_14
+
+out(c, (~M_8,~M_9)) with ~M_8 = pk(skAgent_2), ~M_9 = sign((tTx,(addrWallet,(selTrade,a_12,a_13,tn_6))),skAgent_2) at {70} in copy a_6, a_14
+
+in(c, (~M_1,~M_9)) with ~M_1 = pk(skAgent_2), ~M_9 = sign((tTx,(addrWallet,(selTrade,a_12,a_13,tn_6))),skAgent_2) at {42} in copy a_15
+
+get boundT(pk(skO),pk(skAgent_2)) at {45} in copy a_15
+
+out(permA, (pk(skO),pk(skAgent_2),lim_9,activeSt)) at {39} in copy a_10 received at {46} in copy a_15
+
+event Executed(pk(skO),pk(skAgent_2),a_13,lim_9,tn_6) at {49} in copy a_15 (goal)
+
+The event Executed(pk(skO),pk(skAgent_2),a_13,lim_9,tn_6) is executed at {49} in copy a_15.
+The event HonestAgent(pk(skAgent_2)) is executed at {59} in copy a_6.
+A trace has been found.
+RESULT not (event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) && event(HonestAgent(a_6))) is false.
+-- Query not event(DelegRevoked(pk(skO[]),a_6)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 161 rules (119 with conclusion selected). Queue: 16 rules.
+Starting query not event(DelegRevoked(pk(skO[]),a_6))
+goal reachable: event(DelegRevoked(pk(skO[]),pk(skL_1)))
+Abbreviations:
+skL_1 = skL[!1 = @sid]
+
+Derivation:
+Abbreviations:
+skL_1 = skL[!1 = @sid]
+lim_8 = lim[a_1 = pk(skL_1),!1 = @sid_1]
+
+1. The entry delegatable(pk(skL_1)) may be inserted in a table at insert {105}.
+table(delegatable(pk(skL_1))).
+
+2. The entry delegatable(pk(skL_1)) that may be in a table by 1 may be read at get {12}.
+So the message (pk(skO[]),sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[])) may be sent to the attacker at output {14}.
+attacker((pk(skO[]),sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[]))).
+
+3. By 2, the attacker may know (pk(skO[]),sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[]).
+attacker(sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[])).
+
+4. The message pk(skO[]) may be sent to the attacker at output {1}.
+attacker(pk(skO[])).
+
+5. By 4, the attacker may know pk(skO[]).
+By 3, the attacker may know sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[]).
+Using the function 2-tuple the attacker may obtain (pk(skO[]),sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[])).
+attacker((pk(skO[]),sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[]))).
+
+6. The entry delegatable(pk(skL_1)) that may be in a table by 1 may be read at get {7}.
+So the message (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[])) may be sent to the attacker at output {10}.
+attacker((pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[]))).
+
+7. By 6, the attacker may know (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[]).
+attacker(sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[])).
+
+8. By 4, the attacker may know pk(skO[]).
+By 7, the attacker may know sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[]).
+Using the function 2-tuple the attacker may obtain (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[])).
+attacker((pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[]))).
+
+9. The message (pk(skO[]),sign((tTx,(addrDeleg,(selSet,pk(skL_1),lim_8))),skO[])) that the attacker may have by 8 may be received at input {25}.
+So the entry delegT(pk(skO[]),pk(skL_1),lim_8) may be inserted in a table at insert {29}.
+table(delegT(pk(skO[]),pk(skL_1),lim_8)).
+
+10. The message (pk(skO[]),sign((tTx,(addrDeleg,(selRevoke,pk(skL_1)))),skO[])) that the attacker may have by 5 may be received at input {31}.
+The entry delegT(pk(skO[]),pk(skL_1),lim_8) that may be in a table by 9 may be read at get {34}.
+So event DelegRevoked(pk(skO[]),pk(skL_1)) may be executed at {35}.
+event(DelegRevoked(pk(skO[]),pk(skL_1))).
+
+11. By 10, event(DelegRevoked(pk(skO[]),pk(skL_1))).
+The goal is reached, represented in the following fact:
+event(DelegRevoked(pk(skO[]),pk(skL_1))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skO) at {1}
+
+new skL: skey creating skL_2 at {103} in copy a_6
+
+event Compromised(pk(skL_2)) at {104} in copy a_6
+
+insert delegatable(pk(skL_2)) at {105} in copy a_6
+
+out(c, ~M_1) with ~M_1 = skL_2 at {106} in copy a_6
+
+get delegatable(pk(skL_2)) at {7} in copy a_7
+
+new lim: bitstring creating lim_9 at {8} in copy a_7
+
+event OwnerDelegates(pk(skO),pk(skL_2),lim_9) at {9} in copy a_7
+
+out(c, (~M_2,~M_3)) with ~M_2 = pk(skO), ~M_3 = sign((tTx,(addrDeleg,(selSet,pk(skL_2),lim_9))),skO) at {10} in copy a_7
+
+get delegatable(pk(skL_2)) at {12} in copy a_8
+
+event OwnerRevokes(pk(skO),pk(skL_2)) at {13} in copy a_8
+
+out(c, (~M_4,~M_5)) with ~M_4 = pk(skO), ~M_5 = sign((tTx,(addrDeleg,(selRevoke,pk(skL_2)))),skO) at {14} in copy a_8
+
+in(c, (~M,~M_3)) with ~M = pk(skO), ~M_3 = sign((tTx,(addrDeleg,(selSet,pk(skL_2),lim_9))),skO) at {25} in copy a_9
+
+event Delegated(pk(skO),pk(skL_2),lim_9) at {28} in copy a_9
+
+insert delegT(pk(skO),pk(skL_2),lim_9) at {29} in copy a_9
+
+in(c, (~M,~M_5)) with ~M = pk(skO), ~M_5 = sign((tTx,(addrDeleg,(selRevoke,pk(skL_2)))),skO) at {31} in copy a_10
+
+get delegT(pk(skO),pk(skL_2),lim_9) at {34} in copy a_10
+
+event DelegRevoked(pk(skO),pk(skL_2)) at {35} in copy a_10 (goal)
+
+The event DelegRevoked(pk(skO),pk(skL_2)) is executed at {35} in copy a_10.
+A trace has been found.
+RESULT not event(DelegRevoked(pk(skO[]),a_6)) is false.
+-- Query not attacker_p1(skO[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 168 rules (124 with conclusion selected). Queue: 9 rules.
+Starting query not attacker_p1(skO[])
+RESULT not attacker_p1(skO[]) is true.
+-- Query secret skAgent encoded as not (event(skAgent_contains(v)) && attacker_p1(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 169 rules (124 with conclusion selected). Queue: 10 rules.
+Starting query secret skAgent
+RESULT secret skAgent is true.
+-- Query secret skUnreg encoded as not (event(skUnreg_contains(v)) && attacker_p1(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 169 rules (124 with conclusion selected). Queue: 10 rules.
+Starting query secret skUnreg
+RESULT secret skUnreg is true.
+-- Query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(OwnerDelegates(o_5,a_6,lim_8)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 162 rules (114 with conclusion selected). Queue: 24 rules.
+Starting query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(OwnerDelegates(o_5,a_6,lim_8))
+goal reachable: b-event(OwnerDelegates(pk(skO[]),pk(skL_1),lim_8)) && attacker(amt_5) && attacker(tn_5) -> event(Executed(pk(skO[]),pk(skL_1),amt_5,lim_8,tn_5))
+Abbreviations:
+skL_1 = skL[!1 = @sid]
+lim_8 = lim[a_1 = pk(skL_1),!1 = @sid_1]
+goal reachable: b-event(OwnerDelegates(pk(skO[]),pk(skAgent_1),lim_8)) && attacker(dest_8) && attacker(amt_5) -> event(Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5))
+Abbreviations:
+skAgent_1 = skAgent[!1 = @sid]
+lim_8 = lim[a_1 = pk(skAgent_1),!1 = @sid_1]
+tn_5 = tn_1[amt_1 = amt_5,dest_2 = dest_8,!2 = @sid_2,!1 = @sid]
+RESULT event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(OwnerDelegates(o_5,a_6,lim_8)) is true.
+-- Query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentRequests(a_6,amt_5,tn_5)) || event(Compromised(a_6)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 159 rules (114 with conclusion selected). Queue: 24 rules.
+Starting query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentRequests(a_6,amt_5,tn_5)) || event(Compromised(a_6))
+goal reachable: attacker(amt_5) && attacker(tn_5) && b-event(Compromised(pk(skL_1))) -> event(Executed(pk(skO[]),pk(skL_1),amt_5,lim_8,tn_5))
+Abbreviations:
+skL_1 = skL[!1 = @sid]
+lim_8 = lim[a_1 = pk(skL_1),!1 = @sid_1]
+goal reachable: b-event(AgentRequests(pk(skAgent_1),amt_5,tn_5)) && attacker(dest_8) && attacker(amt_5) -> event(Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5))
+Abbreviations:
+skAgent_1 = skAgent[!1 = @sid]
+lim_8 = lim[a_1 = pk(skAgent_1),!1 = @sid_1]
+tn_5 = tn_1[amt_1 = amt_5,dest_2 = dest_8,!2 = @sid_2,!1 = @sid]
+RESULT event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentRequests(a_6,amt_5,tn_5)) || event(Compromised(a_6)) is true.
+-- Query event(DelegRevoked(pk(skO[]),a_6)) ==> event(OwnerRevokes(pk(skO[]),a_6)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 161 rules (119 with conclusion selected). Queue: 16 rules.
+Starting query event(DelegRevoked(pk(skO[]),a_6)) ==> event(OwnerRevokes(pk(skO[]),a_6))
+goal reachable: b-event(OwnerRevokes(pk(skO[]),pk(skL_1))) -> event(DelegRevoked(pk(skO[]),pk(skL_1)))
+Abbreviations:
+skL_1 = skL[!1 = @sid]
+goal reachable: b-event(OwnerRevokes(pk(skO[]),pk(skUnreg_1))) -> event(DelegRevoked(pk(skO[]),pk(skUnreg_1)))
+Abbreviations:
+skUnreg_1 = skUnreg[!1 = @sid]
+goal reachable: b-event(OwnerRevokes(pk(skO[]),pk(skAgent_1))) -> event(DelegRevoked(pk(skO[]),pk(skAgent_1)))
+Abbreviations:
+skAgent_1 = skAgent[!1 = @sid]
+RESULT event(DelegRevoked(pk(skO[]),a_6)) ==> event(OwnerRevokes(pk(skO[]),a_6)) is true.
+-- Query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentBound(o_5,a_6)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 164 rules (114 with conclusion selected). Queue: 24 rules.
+Starting query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentBound(o_5,a_6))
+goal reachable: b-event(AgentBound(pk(skO[]),pk(skL_1))) && attacker(amt_5) && attacker(tn_5) -> event(Executed(pk(skO[]),pk(skL_1),amt_5,lim_8,tn_5))
+Abbreviations:
+skL_1 = skL[!1 = @sid]
+lim_8 = lim[a_1 = pk(skL_1),!1 = @sid_1]
+goal reachable: b-event(AgentBound(pk(skO[]),pk(skAgent_1))) && attacker(dest_8) && attacker(amt_5) -> event(Executed(pk(skO[]),pk(skAgent_1),amt_5,lim_8,tn_5))
+Abbreviations:
+skAgent_1 = skAgent[!1 = @sid]
+lim_8 = lim[a_1 = pk(skAgent_1),!1 = @sid_1]
+tn_5 = tn_1[amt_1 = amt_5,dest_2 = dest_8,!2 = @sid_2,!1 = @sid]
+RESULT event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentBound(o_5,a_6)) is true.
+-- Query event(AgentBound(o_5,a_6)) && event(HonestAgent(a_6)) ==> event(AgentConsents(a_6,o_5)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 166 rules (123 with conclusion selected). Queue: 14 rules.
+Starting query event(AgentBound(o_5,a_6)) && event(HonestAgent(a_6)) ==> event(AgentConsents(a_6,o_5))
+goal reachable: attacker(k) -> event(AgentBound(pk(k),pk(skUnreg_1))) && event(HonestAgent(pk(skUnreg_1)))
+Abbreviations:
+skUnreg_1 = skUnreg[!1 = @sid]
+
+Derivation:
+Abbreviations:
+skUnreg_1 = skUnreg[!1 = @sid]
+
+1. Event HonestAgent(pk(skUnreg_1)) may be executed at {83}.
+event(HonestAgent(pk(skUnreg_1))).
+
+2. We assume as hypothesis that
+attacker(k).
+
+3. The attacker has some term pop_2.
+attacker(pop_2).
+
+4. The message pk(skUnreg_1) may be sent to the attacker at output {86}.
+attacker(pk(skUnreg_1)).
+
+5. Using the function selRegAgent the attacker may obtain selRegAgent.
+attacker(selRegAgent).
+
+6. By 5, the attacker may know selRegAgent.
+By 4, the attacker may know pk(skUnreg_1).
+By 3, the attacker may know pop_2.
+Using the function 3-tuple the attacker may obtain (selRegAgent,pk(skUnreg_1),pop_2).
+attacker((selRegAgent,pk(skUnreg_1),pop_2)).
+
+7. Using the function addrAgentReg the attacker may obtain addrAgentReg.
+attacker(addrAgentReg).
+
+8. By 7, the attacker may know addrAgentReg.
+By 6, the attacker may know (selRegAgent,pk(skUnreg_1),pop_2).
+Using the function 2-tuple the attacker may obtain (addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2)).
+attacker((addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))).
+
+9. Using the function tTx the attacker may obtain tTx.
+attacker(tTx).
+
+10. By 9, the attacker may know tTx.
+By 8, the attacker may know (addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2)).
+Using the function 2-tuple the attacker may obtain (tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))).
+attacker((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2)))).
+
+11. By 10, the attacker may know (tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))).
+By 2, the attacker may know k.
+Using the function sign the attacker may obtain sign((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))),k).
+attacker(sign((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))),k)).
+
+12. By 2, the attacker may know k.
+Using the function pk the attacker may obtain pk(k).
+attacker(pk(k)).
+
+13. By 12, the attacker may know pk(k).
+By 11, the attacker may know sign((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))),k).
+Using the function 2-tuple the attacker may obtain (pk(k),sign((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))),k)).
+attacker((pk(k),sign((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))),k))).
+
+14. The message (pk(k),sign((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_1),pop_2))),k)) that the attacker may have by 13 may be received at input {51}.
+So event AgentBound(pk(k),pk(skUnreg_1)) may be executed at {54}.
+event(AgentBound(pk(k),pk(skUnreg_1))).
+
+15. By 14, event(AgentBound(pk(k),pk(skUnreg_1))).
+By 1, event(HonestAgent(pk(skUnreg_1))).
+The goals are reached, combined in the following fact:
+event(AgentBound(pk(k),pk(skUnreg_1))) && event(HonestAgent(pk(skUnreg_1))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skO) at {1}
+
+new skUnreg: skey creating skUnreg_2 at {81} in copy a_6
+
+event skUnreg_contains(skUnreg_2) at {82} in copy a_6
+
+event HonestAgent(pk(skUnreg_2)) at {83} in copy a_6 (goal)
+
+insert delegatable(pk(skUnreg_2)) at {84} in copy a_6
+
+insert agentKeyT(skUnreg_2) at {85} in copy a_6
+
+out(c, ~M_1) with ~M_1 = pk(skUnreg_2) at {86} in copy a_6
+
+in(c, (pk(a_7),sign((tTx,(addrAgentReg,(selRegAgent,~M_1,a_8))),a_7))) with sign((tTx,(addrAgentReg,(selRegAgent,~M_1,a_8))),a_7) = sign((tTx,(addrAgentReg,(selRegAgent,pk(skUnreg_2),a_8))),a_7) at {51} in copy a_9
+
+event AgentBound(pk(a_7),pk(skUnreg_2)) at {54} in copy a_9 (goal)
+
+The event AgentBound(pk(a_7),pk(skUnreg_2)) is executed at {54} in copy a_9.
+The event HonestAgent(pk(skUnreg_2)) is executed at {83} in copy a_6.
+A trace has been found.
+RESULT event(AgentBound(o_5,a_6)) && event(HonestAgent(a_6)) ==> event(AgentConsents(a_6,o_5)) is false.
+-- Query not event(ExecutedP1(o_5,a_6,amt_5)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 170 rules (112 with conclusion selected). Queue: 24 rules.
+Starting query not event(ExecutedP1(o_5,a_6,amt_5))
+RESULT not event(ExecutedP1(o_5,a_6,amt_5)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not (event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) && event(HonestAgent(a_6))) is false.
+
+Query not event(DelegRevoked(pk(skO[]),a_6)) is false.
+
+Query not attacker_p1(skO[]) is true.
+
+Query secret skAgent is true.
+
+Query secret skUnreg is true.
+
+Query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(OwnerDelegates(o_5,a_6,lim_8)) is true.
+
+Query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentRequests(a_6,amt_5,tn_5)) || event(Compromised(a_6)) is true.
+
+Query event(DelegRevoked(pk(skO[]),a_6)) ==> event(OwnerRevokes(pk(skO[]),a_6)) is true.
+
+Query event(Executed(o_5,a_6,amt_5,lim_8,tn_5)) ==> event(AgentBound(o_5,a_6)) is true.
+
+Query event(AgentBound(o_5,a_6)) && event(HonestAgent(a_6)) ==> event(AgentConsents(a_6,o_5)) is false.
+
+Query not event(ExecutedP1(o_5,a_6,amt_5)) is true.
+
+--------------------------------------------------------------
+
+
+--- stderr ---
