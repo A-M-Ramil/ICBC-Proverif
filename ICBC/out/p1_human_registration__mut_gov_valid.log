@@ -1,0 +1,286 @@
+Process 0 (that is, the initial process):
+{1}out(c, pk(skIRM));
+(
+    {2}!
+    {3}in(tls, govID: bitstring);
+    {4}new skD: skey;
+    {5}let did: bitstring = didOf(pk(skD)) in
+    {6}let hgov: bitstring = h((pepper,govID)) in
+    {7}event GovVerified(did,govID);
+    {8}event Committed(did,hgov);
+    {9}out(c, did);
+    {10}out(c, (pk(skIRM),sign((tTx,(addrDID,(selRegisterDID,did,hgov))),skIRM)))
+) | (
+    {11}!
+    {12}in(c, (sender: pkey,stx: bitstring));
+    {13}let (=tTx,(=addrDID,(=selRegisterDID,did_1: bitstring,hgov_1: bitstring))) = checksign(stx,sender) in
+    {14}if (sender = pk(skIRM)) then
+    {15}event Anchored(did_1,hgov_1)
+) | (
+    {16}let sk: skey = skIRM in
+    {17}!
+    {18}in(c, (dest: bitstring,call: bitstring));
+    {19}if (dest ≠ addrDID) then
+    {20}out(c, sign((tTx,(dest,call)),sk))
+) | (
+    {21}!
+    {22}in(c, x: bitstring);
+    {23}out(tls, x)
+) | (
+    {24}!
+    {25}new gH: bitstring;
+    {26}event Enrolled(gH);
+    {27}insert validGovIDs(gH);
+    {28}out(tls, gH)
+) | (
+    {29}event Enrolled(govVictim);
+    {30}insert validGovIDs(govVictim);
+    {31}!
+    {32}out(tls, govVictim)
+) | (
+    {33}!
+    {34}new gC: bitstring;
+    {35}event Enrolled(gC);
+    {36}insert validGovIDs(gC);
+    {37}out(c, gC)
+)
+
+--  Process 1 (that is, process 0, encoded for secret skD, with let moved downwards):
+{1}out(c, pk(skIRM));
+(
+    {2}!
+    {3}in(tls, govID: bitstring);
+    {4}new skD: skey;
+    {5}event skD_contains(skD);
+    {6}let did: bitstring = didOf(pk(skD)) in
+    {8}event GovVerified(did,govID);
+    {7}let hgov: bitstring = h((pepper,govID)) in
+    {9}event Committed(did,hgov);
+    {10}out(c, did);
+    {11}out(c, (pk(skIRM),sign((tTx,(addrDID,(selRegisterDID,did,hgov))),skIRM)))
+) | (
+    {12}!
+    {13}in(c, (sender: pkey,stx: bitstring));
+    {14}let (=tTx,(=addrDID,(=selRegisterDID,did_1: bitstring,hgov_1: bitstring))) = checksign(stx,sender) in
+    {15}if (sender = pk(skIRM)) then
+    {16}event Anchored(did_1,hgov_1)
+) | (
+    {18}!
+    {19}in(c, (dest: bitstring,call: bitstring));
+    {20}if (dest ≠ addrDID) then
+    {17}let sk: skey = skIRM in
+    {21}out(c, sign((tTx,(dest,call)),sk))
+) | (
+    {22}!
+    {23}in(c, x: bitstring);
+    {24}out(tls, x)
+) | (
+    {25}!
+    {26}new gH: bitstring;
+    {27}event Enrolled(gH);
+    {28}insert validGovIDs(gH);
+    {29}out(tls, gH)
+) | (
+    {30}event Enrolled(govVictim);
+    {31}insert validGovIDs(govVictim);
+    {32}!
+    {33}out(tls, govVictim)
+) | (
+    {34}!
+    {35}new gC: bitstring;
+    {36}event Enrolled(gC);
+    {37}insert validGovIDs(gC);
+    {38}out(c, gC)
+)
+
+-- Query not event(Anchored(d,g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(Anchored(d,g))
+goal reachable: attacker(govID_1) -> event(Anchored(didOf(pk(skD_1)),h((pepper[],govID_1))))
+Abbreviations:
+skD_1 = skD[govID = govID_1,!1 = @sid]
+
+Derivation:
+Abbreviations:
+skD_1 = skD[govID = govID_1,!1 = @sid]
+
+1. We assume as hypothesis that
+attacker(govID_1).
+
+2. The message govID_1 that the attacker may have by 1 may be received at input {23}.
+So the message govID_1 may be sent on channel tls[] at output {24}.
+mess(tls[],govID_1).
+
+3. The message govID_1 that may be sent on channel tls[] by 2 may be received at input {3}.
+So the message (pk(skIRM[]),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[])) may be sent to the attacker at output {11}.
+attacker((pk(skIRM[]),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[]))).
+
+4. By 3, the attacker may know (pk(skIRM[]),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[]).
+attacker(sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[])).
+
+5. The message pk(skIRM[]) may be sent to the attacker at output {1}.
+attacker(pk(skIRM[])).
+
+6. By 5, the attacker may know pk(skIRM[]).
+By 4, the attacker may know sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[]).
+Using the function 2-tuple the attacker may obtain (pk(skIRM[]),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[])).
+attacker((pk(skIRM[]),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[]))).
+
+7. The message (pk(skIRM[]),sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_1)),h((pepper[],govID_1))))),skIRM[])) that the attacker may have by 6 may be received at input {13}.
+So event Anchored(didOf(pk(skD_1)),h((pepper[],govID_1))) may be executed at {16}.
+event(Anchored(didOf(pk(skD_1)),h((pepper[],govID_1)))).
+
+8. By 7, event(Anchored(didOf(pk(skD_1)),h((pepper[],govID_1)))).
+The goal is reached, represented in the following fact:
+event(Anchored(didOf(pk(skD_1)),h((pepper[],govID_1)))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skIRM) at {1}
+
+event Enrolled(govVictim) at {30}
+
+insert validGovIDs(govVictim) at {31}
+
+in(c, a) at {23} in copy a_1
+
+out(tls, a) at {24} in copy a_1 received at {3} in copy a_2
+
+new skD: skey creating skD_2 at {4} in copy a_2
+
+event skD_contains(skD_2) at {5} in copy a_2
+
+event GovVerified(didOf(pk(skD_2)),a) at {8} in copy a_2
+
+event Committed(didOf(pk(skD_2)),h((pepper,a))) at {9} in copy a_2
+
+out(c, ~M_1) with ~M_1 = didOf(pk(skD_2)) at {10} in copy a_2
+
+out(c, (~M_2,~M_3)) with ~M_2 = pk(skIRM), ~M_3 = sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_2)),h((pepper,a))))),skIRM) at {11} in copy a_2
+
+in(c, (~M,~M_3)) with ~M = pk(skIRM), ~M_3 = sign((tTx,(addrDID,(selRegisterDID,didOf(pk(skD_2)),h((pepper,a))))),skIRM) at {13} in copy a_3
+
+event Anchored(didOf(pk(skD_2)),h((pepper,a))) at {16} in copy a_3 (goal)
+
+The event Anchored(didOf(pk(skD_2)),h((pepper,a))) is executed at {16} in copy a_3.
+A trace has been found.
+RESULT not event(Anchored(d,g)) is false.
+-- Query not attacker(skIRM[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(skIRM[])
+RESULT not attacker(skIRM[]) is true.
+-- Query not attacker(pepper[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(pepper[])
+RESULT not attacker(pepper[]) is true.
+-- Query secret skD encoded as not (event(skD_contains(v)) && attacker(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query secret skD
+RESULT secret skD is true.
+-- Weak secret govVictim in process 1.
+Translating the process into Horn clauses...
+Termination warning: v ≠ v_1 && attacker_guess(v_2,v) && attacker_guess(v_2,v_1) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker_guess(v,v_2) && attacker_guess(v_1,v_2) -> bad
+Selecting 0
+Completing...
+Termination warning: v ≠ v_1 && attacker_guess(v_2,v) && attacker_guess(v_2,v_1) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker_guess(v,v_2) && attacker_guess(v_1,v_2) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker(v) && attacker_guess(v,v_1) -> bad
+Selecting 1
+Termination warning: v ≠ v_1 && attacker(v) && attacker_guess(v_1,v) -> bad
+Selecting 1
+200 rules inserted. Base: 191 rules (57 with conclusion selected). Queue: 12 rules.
+RESULT Weak secret govVictim is true.
+-- Query event(Anchored(d,g)) ==> event(Committed(d,g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Anchored(d,g)) ==> event(Committed(d,g))
+goal reachable: b-event(Committed(didOf(pk(skD_1)),h((pepper[],govID_1)))) && attacker(govID_1) -> event(Anchored(didOf(pk(skD_1)),h((pepper[],govID_1))))
+Abbreviations:
+skD_1 = skD[govID = govID_1,!1 = @sid]
+goal reachable: b-event(Committed(didOf(pk(skD_1)),h((pepper[],gH_1)))) -> event(Anchored(didOf(pk(skD_1)),h((pepper[],gH_1))))
+Abbreviations:
+gH_1 = gH[!1 = @sid]
+skD_1 = skD[govID = gH_1,!1 = @sid_1]
+goal reachable: b-event(Committed(didOf(pk(skD_1)),h((pepper[],govVictim[])))) -> event(Anchored(didOf(pk(skD_1)),h((pepper[],govVictim[]))))
+Abbreviations:
+skD_1 = skD[govID = govVictim[],!1 = @sid]
+RESULT event(Anchored(d,g)) ==> event(Committed(d,g)) is true.
+-- Query event(GovVerified(d,g)) ==> event(Enrolled(g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(GovVerified(d,g)) ==> event(Enrolled(g))
+goal reachable: attacker(g) -> event(GovVerified(didOf(pk(skD_1)),g))
+Abbreviations:
+skD_1 = skD[govID = g,!1 = @sid]
+
+Derivation:
+Abbreviations:
+skD_1 = skD[govID = g,!1 = @sid]
+
+1. We assume as hypothesis that
+attacker(g).
+
+2. The message g that the attacker may have by 1 may be received at input {23}.
+So the message g may be sent on channel tls[] at output {24}.
+mess(tls[],g).
+
+3. The message g that may be sent on channel tls[] by 2 may be received at input {3}.
+So event GovVerified(didOf(pk(skD_1)),g) may be executed at {8}.
+event(GovVerified(didOf(pk(skD_1)),g)).
+
+4. By 3, event(GovVerified(didOf(pk(skD_1)),g)).
+The goal is reached, represented in the following fact:
+event(GovVerified(didOf(pk(skD_1)),g)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skIRM) at {1}
+
+in(c, a) at {23} in copy a_1
+
+out(tls, a) at {24} in copy a_1 received at {3} in copy a_2
+
+new skD: skey creating skD_2 at {4} in copy a_2
+
+event skD_contains(skD_2) at {5} in copy a_2
+
+event GovVerified(didOf(pk(skD_2)),a) at {8} in copy a_2 (goal)
+
+The event GovVerified(didOf(pk(skD_2)),a) is executed at {8} in copy a_2.
+A trace has been found.
+RESULT event(GovVerified(d,g)) ==> event(Enrolled(g)) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not event(Anchored(d,g)) is false.
+
+Query not attacker(skIRM[]) is true.
+
+Query not attacker(pepper[]) is true.
+
+Query secret skD is true.
+
+Weak secret govVictim is true.
+
+Query event(Anchored(d,g)) ==> event(Committed(d,g)) is true.
+
+Query event(GovVerified(d,g)) ==> event(Enrolled(g)) is false.
+
+--------------------------------------------------------------
+
+
+--- stderr ---

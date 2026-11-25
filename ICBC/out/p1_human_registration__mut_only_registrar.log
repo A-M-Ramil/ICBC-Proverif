@@ -1,0 +1,327 @@
+Process 0 (that is, the initial process):
+{1}out(c, pk(skIRM));
+(
+    {2}!
+    {3}in(tls, govID: bitstring);
+    {11}get validGovIDs(=govID) in
+    {4}new skD: skey;
+    {5}let did: bitstring = didOf(pk(skD)) in
+    {6}let hgov: bitstring = h((pepper,govID)) in
+    {7}event GovVerified(did,govID);
+    {8}event Committed(did,hgov);
+    {9}out(c, did);
+    {10}out(c, (pk(skIRM),sign((tTx,(addrDID,(selRegisterDID,did,hgov))),skIRM)))
+) | (
+    {12}!
+    {13}in(c, (sender: pkey,stx: bitstring));
+    {14}let (=tTx,(=addrDID,(=selRegisterDID,did_1: bitstring,hgov_1: bitstring))) = checksign(stx,sender) in
+    {15}event Anchored(did_1,hgov_1)
+) | (
+    {16}let sk: skey = skIRM in
+    {17}!
+    {18}in(c, (dest: bitstring,call: bitstring));
+    {19}if (dest ≠ addrDID) then
+    {20}out(c, sign((tTx,(dest,call)),sk))
+) | (
+    {21}!
+    {22}in(c, x: bitstring);
+    {23}out(tls, x)
+) | (
+    {24}!
+    {25}new gH: bitstring;
+    {26}event Enrolled(gH);
+    {27}insert validGovIDs(gH);
+    {28}out(tls, gH)
+) | (
+    {29}event Enrolled(govVictim);
+    {30}insert validGovIDs(govVictim);
+    {31}!
+    {32}out(tls, govVictim)
+) | (
+    {33}!
+    {34}new gC: bitstring;
+    {35}event Enrolled(gC);
+    {36}insert validGovIDs(gC);
+    {37}out(c, gC)
+)
+
+--  Process 1 (that is, process 0, encoded for secret skD, with let moved downwards):
+{1}out(c, pk(skIRM));
+(
+    {2}!
+    {3}in(tls, govID: bitstring);
+    {4}get validGovIDs(=govID) in
+    {5}new skD: skey;
+    {6}event skD_contains(skD);
+    {7}let did: bitstring = didOf(pk(skD)) in
+    {9}event GovVerified(did,govID);
+    {8}let hgov: bitstring = h((pepper,govID)) in
+    {10}event Committed(did,hgov);
+    {11}out(c, did);
+    {12}out(c, (pk(skIRM),sign((tTx,(addrDID,(selRegisterDID,did,hgov))),skIRM)))
+) | (
+    {13}!
+    {14}in(c, (sender: pkey,stx: bitstring));
+    {15}let (=tTx,(=addrDID,(=selRegisterDID,did_1: bitstring,hgov_1: bitstring))) = checksign(stx,sender) in
+    {16}event Anchored(did_1,hgov_1)
+) | (
+    {18}!
+    {19}in(c, (dest: bitstring,call: bitstring));
+    {20}if (dest ≠ addrDID) then
+    {17}let sk: skey = skIRM in
+    {21}out(c, sign((tTx,(dest,call)),sk))
+) | (
+    {22}!
+    {23}in(c, x: bitstring);
+    {24}out(tls, x)
+) | (
+    {25}!
+    {26}new gH: bitstring;
+    {27}event Enrolled(gH);
+    {28}insert validGovIDs(gH);
+    {29}out(tls, gH)
+) | (
+    {30}event Enrolled(govVictim);
+    {31}insert validGovIDs(govVictim);
+    {32}!
+    {33}out(tls, govVictim)
+) | (
+    {34}!
+    {35}new gC: bitstring;
+    {36}event Enrolled(gC);
+    {37}insert validGovIDs(gC);
+    {38}out(c, gC)
+)
+
+-- Query not event(Anchored(d,g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(Anchored(d,g))
+goal reachable: attacker(d) && attacker(g) -> event(Anchored(d,g))
+
+Derivation:
+
+1. The attacker has some term k.
+attacker(k).
+
+2. We assume as hypothesis that
+attacker(g).
+
+3. We assume as hypothesis that
+attacker(d).
+
+4. Using the function selRegisterDID the attacker may obtain selRegisterDID.
+attacker(selRegisterDID).
+
+5. By 4, the attacker may know selRegisterDID.
+By 3, the attacker may know d.
+By 2, the attacker may know g.
+Using the function 3-tuple the attacker may obtain (selRegisterDID,d,g).
+attacker((selRegisterDID,d,g)).
+
+6. Using the function addrDID the attacker may obtain addrDID.
+attacker(addrDID).
+
+7. By 6, the attacker may know addrDID.
+By 5, the attacker may know (selRegisterDID,d,g).
+Using the function 2-tuple the attacker may obtain (addrDID,(selRegisterDID,d,g)).
+attacker((addrDID,(selRegisterDID,d,g))).
+
+8. Using the function tTx the attacker may obtain tTx.
+attacker(tTx).
+
+9. By 8, the attacker may know tTx.
+By 7, the attacker may know (addrDID,(selRegisterDID,d,g)).
+Using the function 2-tuple the attacker may obtain (tTx,(addrDID,(selRegisterDID,d,g))).
+attacker((tTx,(addrDID,(selRegisterDID,d,g)))).
+
+10. By 9, the attacker may know (tTx,(addrDID,(selRegisterDID,d,g))).
+By 1, the attacker may know k.
+Using the function sign the attacker may obtain sign((tTx,(addrDID,(selRegisterDID,d,g))),k).
+attacker(sign((tTx,(addrDID,(selRegisterDID,d,g))),k)).
+
+11. By 1, the attacker may know k.
+Using the function pk the attacker may obtain pk(k).
+attacker(pk(k)).
+
+12. By 11, the attacker may know pk(k).
+By 10, the attacker may know sign((tTx,(addrDID,(selRegisterDID,d,g))),k).
+Using the function 2-tuple the attacker may obtain (pk(k),sign((tTx,(addrDID,(selRegisterDID,d,g))),k)).
+attacker((pk(k),sign((tTx,(addrDID,(selRegisterDID,d,g))),k))).
+
+13. The message (pk(k),sign((tTx,(addrDID,(selRegisterDID,d,g))),k)) that the attacker may have by 12 may be received at input {14}.
+So event Anchored(d,g) may be executed at {16}.
+event(Anchored(d,g)).
+
+14. By 13, event(Anchored(d,g)).
+The goal is reached, represented in the following fact:
+event(Anchored(d,g)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skIRM) at {1}
+
+event Enrolled(govVictim) at {30}
+
+insert validGovIDs(govVictim) at {31}
+
+in(c, (pk(a),sign((tTx,(addrDID,(selRegisterDID,a_1,a_2))),a))) at {14} in copy a_3
+
+event Anchored(a_1,a_2) at {16} in copy a_3 (goal)
+
+The event Anchored(a_1,a_2) is executed at {16} in copy a_3.
+A trace has been found.
+RESULT not event(Anchored(d,g)) is false.
+-- Query not attacker(skIRM[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(skIRM[])
+RESULT not attacker(skIRM[]) is true.
+-- Query not attacker(pepper[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(pepper[])
+RESULT not attacker(pepper[]) is true.
+-- Query secret skD encoded as not (event(skD_contains(v)) && attacker(v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query secret skD
+RESULT secret skD is true.
+-- Weak secret govVictim in process 1.
+Translating the process into Horn clauses...
+Termination warning: v ≠ v_1 && attacker_guess(v_2,v) && attacker_guess(v_2,v_1) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker_guess(v,v_2) && attacker_guess(v_1,v_2) -> bad
+Selecting 0
+Completing...
+Termination warning: v ≠ v_1 && attacker_guess(v_2,v) && attacker_guess(v_2,v_1) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker_guess(v,v_2) && attacker_guess(v_1,v_2) -> bad
+Selecting 0
+Termination warning: v ≠ v_1 && attacker(v) && attacker_guess(v,v_1) -> bad
+Selecting 1
+Termination warning: v ≠ v_1 && attacker(v) && attacker_guess(v_1,v) -> bad
+Selecting 1
+200 rules inserted. Base: 183 rules (57 with conclusion selected). Queue: 16 rules.
+RESULT Weak secret govVictim is true.
+-- Query event(Anchored(d,g)) ==> event(Committed(d,g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Anchored(d,g)) ==> event(Committed(d,g))
+goal reachable: attacker(d) && attacker(g) -> event(Anchored(d,g))
+
+Derivation:
+
+1. The attacker has some term k.
+attacker(k).
+
+2. We assume as hypothesis that
+attacker(g).
+
+3. We assume as hypothesis that
+attacker(d).
+
+4. Using the function selRegisterDID the attacker may obtain selRegisterDID.
+attacker(selRegisterDID).
+
+5. By 4, the attacker may know selRegisterDID.
+By 3, the attacker may know d.
+By 2, the attacker may know g.
+Using the function 3-tuple the attacker may obtain (selRegisterDID,d,g).
+attacker((selRegisterDID,d,g)).
+
+6. Using the function addrDID the attacker may obtain addrDID.
+attacker(addrDID).
+
+7. By 6, the attacker may know addrDID.
+By 5, the attacker may know (selRegisterDID,d,g).
+Using the function 2-tuple the attacker may obtain (addrDID,(selRegisterDID,d,g)).
+attacker((addrDID,(selRegisterDID,d,g))).
+
+8. Using the function tTx the attacker may obtain tTx.
+attacker(tTx).
+
+9. By 8, the attacker may know tTx.
+By 7, the attacker may know (addrDID,(selRegisterDID,d,g)).
+Using the function 2-tuple the attacker may obtain (tTx,(addrDID,(selRegisterDID,d,g))).
+attacker((tTx,(addrDID,(selRegisterDID,d,g)))).
+
+10. By 9, the attacker may know (tTx,(addrDID,(selRegisterDID,d,g))).
+By 1, the attacker may know k.
+Using the function sign the attacker may obtain sign((tTx,(addrDID,(selRegisterDID,d,g))),k).
+attacker(sign((tTx,(addrDID,(selRegisterDID,d,g))),k)).
+
+11. By 1, the attacker may know k.
+Using the function pk the attacker may obtain pk(k).
+attacker(pk(k)).
+
+12. By 11, the attacker may know pk(k).
+By 10, the attacker may know sign((tTx,(addrDID,(selRegisterDID,d,g))),k).
+Using the function 2-tuple the attacker may obtain (pk(k),sign((tTx,(addrDID,(selRegisterDID,d,g))),k)).
+attacker((pk(k),sign((tTx,(addrDID,(selRegisterDID,d,g))),k))).
+
+13. The message (pk(k),sign((tTx,(addrDID,(selRegisterDID,d,g))),k)) that the attacker may have by 12 may be received at input {14}.
+So event Anchored(d,g) may be executed at {16}.
+event(Anchored(d,g)).
+
+14. By 13, event(Anchored(d,g)).
+The goal is reached, represented in the following fact:
+event(Anchored(d,g)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(skIRM) at {1}
+
+event Enrolled(govVictim) at {30}
+
+insert validGovIDs(govVictim) at {31}
+
+in(c, (pk(a),sign((tTx,(addrDID,(selRegisterDID,a_1,a_2))),a))) at {14} in copy a_3
+
+event Anchored(a_1,a_2) at {16} in copy a_3 (goal)
+
+The event Anchored(a_1,a_2) is executed at {16} in copy a_3.
+A trace has been found.
+RESULT event(Anchored(d,g)) ==> event(Committed(d,g)) is false.
+-- Query event(GovVerified(d,g)) ==> event(Enrolled(g)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(GovVerified(d,g)) ==> event(Enrolled(g))
+goal reachable: b-event(Enrolled(gC_1)) -> event(GovVerified(didOf(pk(skD_1)),gC_1))
+Abbreviations:
+gC_1 = gC[!1 = @sid]
+skD_1 = skD[govID = gC_1,!1 = @sid_1]
+goal reachable: b-event(Enrolled(gH_1)) -> event(GovVerified(didOf(pk(skD_1)),gH_1))
+Abbreviations:
+gH_1 = gH[!1 = @sid]
+skD_1 = skD[govID = gH_1,!1 = @sid_1]
+goal reachable: b-event(Enrolled(govVictim[])) -> event(GovVerified(didOf(pk(skD_1)),govVictim[]))
+Abbreviations:
+skD_1 = skD[govID = govVictim[],!1 = @sid]
+RESULT event(GovVerified(d,g)) ==> event(Enrolled(g)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not event(Anchored(d,g)) is false.
+
+Query not attacker(skIRM[]) is true.
+
+Query not attacker(pepper[]) is true.
+
+Query secret skD is true.
+
+Weak secret govVictim is true.
+
+Query event(Anchored(d,g)) ==> event(Committed(d,g)) is false.
+
+Query event(GovVerified(d,g)) ==> event(Enrolled(g)) is true.
+
+--------------------------------------------------------------
+
+
+--- stderr ---

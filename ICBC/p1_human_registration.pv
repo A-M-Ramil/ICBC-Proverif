@@ -1,26 +1,30 @@
 (* =====================================================================
    P1: Human Identity Registration (REG_u)
-   Thesis Sec 6.1 / prototype: issuer backend /protocol1/create-ssi-identity
-   + DIDRegistry.registerDID
+   Prototype: issuer backend /protocol1/create-ssi-identity
+              + DIDRegistry.registerDID (registrar-only)
    Tool: ProVerif 2.05      Run: proverif p1_human_registration.pv
    ---------------------------------------------------------------------
+   Deployment modelled (matches the prototype): custodial onboarding.
+   The identity registration module (IRM) verifies the gov ID, creates
+   the user's DID key in its own agent wallet (ACA-Py), computes the
+   gov-ID commitment HMAC(pepper, govID) and anchors the DID itself.
+   DIDRegistry accepts registerDID only from the registrar account.
    Threat model
    - Dolev-Yao attacker owns the public channel c (network, mempool,
-     IPFS, public chain state).
+     IPFS, public chain state) and can submit any transaction signed
+     with its own keys.
    - Insiders: the attacker holds real, valid government IDs (gC) and can
-     generate its own keys, so it can register its own identities.
-   - Key reuse: every honest key also signs, for the attacker, any message
-     whose tag is not used in this protocol, and any Ethereum tx to a
-     contract other than DIDRegistry (KeyReuseOracle).
+     open its own TLS sessions to the IRM, so it can register itself.
+   - Key reuse: the registrar key also signs transactions to every other
+     contract (it is the credential issuer too), for any call data the
+     attacker chooses (KeyReuseOracle).
    Channel assumption
-   - user -> IRM upload of personal data is HTTPS (server-authenticated
-     TLS): confidential and IRM-authenticated (private channel tls). The
-     attacker can also open its own TLS sessions to the IRM (relay).
+   - user -> IRM upload of the gov ID is HTTPS (private channel tls).
    Abstractions
-   - Gov ID API (M2-M3) and biometric step (M4-M5) are folded into the
-     IRM's trusted lookup in validGovIDs. IPFS CIDs are content hashes
-     and are omitted.
-   - DID = didOf(pk): did:ethr is derived from the key (injective).
+   - IPFS CIDs are content hashes and are omitted. The used-gov-ID
+     uniqueness check (usedGovIDs) is stateful and is tested in the rig
+     (S13), not here. Transaction replay is prevented by account nonces
+     (trust assumption) and DIDAlreadyExists (rig S14).
    Lines tagged with a CHK marker are security checks; run_all.py removes
    each one in turn and requires that at least one query then fails.
    ===================================================================== *)
@@ -39,120 +43,77 @@ reduc forall m: bitstring, k: skey; getmess(sign(m, k)) = m.
 fun h(bitstring): bitstring.
 fun didOf(pkey): bitstring.
 
-const tCtl: tag.   (* DID-control challenge response, M7 *)
-const tAtt: tag.   (* IRM attestation of (DID, h_gov) *)
-const tTx: tag.    (* Ethereum transaction *)
-const addrDID: bitstring.
+const tTx: tag.                 (* Ethereum transaction *)
+const addrDID: bitstring.       (* DIDRegistry address *)
 const selRegisterDID: bitstring.
 
-free skIRM: skey [private].
+free skIRM: skey [private].     (* registrar account key *)
 free govVictim: bitstring [private].
 free pepper: bitstring [private].   (* issuer-held HMAC key (gov_id_pepper.key) *)
 
 table validGovIDs(bitstring).
-table honestT(pkey).          (* ghost table: only used to label events *)
 
-event HonestUser(pkey).
-event UserStartsReg(pkey, bitstring).
-event IRMVerifiedHonest(pkey, bitstring).
-event GovVerified(bitstring, bitstring).            (* did, h_gov *)
-event UserSubmitsAnchor(bitstring, pkey, bitstring).
-event Anchored(bitstring, pkey, bitstring).          (* did, msg.sender, h_gov *)
+event Enrolled(bitstring).                   (* govID exists in the gov database *)
+event GovVerified(bitstring, bitstring).     (* did, govID: IRM checked the ID *)
+event Committed(bitstring, bitstring).       (* did, h_gov: IRM sent the anchor tx *)
+event Anchored(bitstring, bitstring).        (* did, h_gov: registry stored it *)
 
 (* ---------------- Sanity (non-vacuity). EXPECT: false = reachable ---- *)
-query p: pkey, g: bitstring;
-  event(Anchored(didOf(p), p, g)) && event(HonestUser(p)) ==> false.
-query p: pkey, n: bitstring;
-  event(IRMVerifiedHonest(p, n)) ==> false.
+query d: bitstring, g: bitstring; event(Anchored(d, g)) ==> false.
 
 (* ---------------- Secrecy. EXPECT: true ------------------------------ *)
 query attacker(skIRM).
 query attacker(pepper).
-query secret skH.
-query secret skV.
+query secret skD.
 
 (* ---------------- Privacy of the on-chain gov-ID commitment
    HMAC(pepper, govID). EXPECT: true. The NOPEPPER mutant (plain
-   keccak(govID), the old prototype) EXPECT: false = offline dictionary
-   attack on the public value. ------------------------------------------ *)
+   keccak(govID)) EXPECT: false = offline dictionary attack. ---------- *)
 weaksecret govVictim.
 
-(* ---------------- A1 (anti-squatting): an honest user's DID can only be
-   anchored by that user, with the h_gov the user submitted. EXPECT: true *)
-query p: pkey, o: pkey, g: bitstring;
-  event(Anchored(didOf(p), o, g)) && event(HonestUser(p))
-  ==> event(UserSubmitsAnchor(didOf(p), o, g)).
+(* ---------------- A1 (registrar gate): every anchored DID and
+   commitment was produced by the IRM. EXPECT: true --------------------- *)
+query d: bitstring, g: bitstring;
+  event(Anchored(d, g)) ==> event(Committed(d, g)).
 
-(* ---------------- A2 (KYC gate): nothing is anchored unless the IRM
-   verified a valid gov ID for exactly that DID. EXPECT: true ---------- *)
-query d: bitstring, o: pkey, g: bitstring;
-  event(Anchored(d, o, g)) ==> event(GovVerified(d, g)).
-
-(* ---------------- A3 (injective DID-control proof, anti-replay of M7).
-   EXPECT: true --------------------------------------------------------- *)
-query p: pkey, n: bitstring;
-  inj-event(IRMVerifiedHonest(p, n)) ==> inj-event(UserStartsReg(p, n)).
+(* ---------------- A2 (KYC gate): the IRM only commits a DID for a gov ID
+   that exists in the gov database. EXPECT: true ------------------------ *)
+query d: bitstring, g: bitstring;
+  event(GovVerified(d, g)) ==> event(Enrolled(g)).
 
 (* ===================================================================== *)
 
+(* The registrar key signs transactions to other contracts as well *)
 let KeyReuseOracle(sk: skey) =
-    (!in(c, (t: tag, m: bitstring));
-       if t <> tCtl && t <> tAtt && t <> tTx then out(c, sign((t, m), sk)))
-  | (!in(c, (dest: bitstring, call: bitstring));
-       if dest <> addrDID then out(c, sign((tTx, (dest, call)), sk))).
-
-let User(skU: skey, govID: bitstring) =
-  let pkU = pk(skU) in
-  let didU = didOf(pkU) in
-  event HonestUser(pkU);
-  insert honestT(pkU);
-  out(c, pkU);
-  (* M1: personal data over HTTPS *)
-  out(tls, (pkU, govID));
-  (* M7: challenge-response proof of DID control *)
-  in(c, n: bitstring);
-  event UserStartsReg(pkU, n);
-  out(c, sign((tCtl, (didU, n)), skU));
-  (* M9-M10: wallet submits the anchoring tx carrying the IRM attestation *)
-  in(c, att: bitstring);
-  let (=tAtt, (=didU, hgov: bitstring)) = checksign(att, pk(skIRM)) in
-  event UserSubmitsAnchor(didU, pkU, hgov);
-  out(c, (pkU, sign((tTx, (addrDID, (selRegisterDID, didU, hgov, att))), skU))).
+  !in(c, (dest: bitstring, call: bitstring));
+  if dest <> addrDID then out(c, sign((tTx, (dest, call)), sk)).
 
 let IRM =
-  in(tls, (pkU: pkey, govID: bitstring));
-  new n: bitstring;
-  out(c, n);
-  in(c, sig: bitstring);
-  let (=tCtl, (=didOf(pkU), n2: bitstring)) = checksign(sig, pkU) in
-  (*CHK:fresh_challenge*) if n2 = n then
-  (
-    (get honestT(=pkU) in event IRMVerifiedHonest(pkU, n))
-  |
-    (get validGovIDs(=govID) in
-     let hgov = h((pepper, govID)) in
-     event GovVerified(didOf(pkU), hgov);
-     out(c, sign((tAtt, (didOf(pkU), hgov)), skIRM)))
-  ).
+  in(tls, govID: bitstring);
+  (*CHK:gov_valid*) get validGovIDs(=govID) in
+  new skD: skey;                       (* custodial DID key in the IRM wallet *)
+  let did = didOf(pk(skD)) in
+  let hgov = h((pepper, govID)) in
+  event GovVerified(did, govID);
+  event Committed(did, hgov);
+  out(c, did);
+  out(c, (pk(skIRM), sign((tTx, (addrDID, (selRegisterDID, did, hgov))), skIRM))).
 
 (* DIDRegistry.registerDID; sender = msg.sender (tx signature) *)
 let DIDRegistry =
   in(c, (sender: pkey, stx: bitstring));
-  let (=tTx, (=addrDID, (=selRegisterDID, did: bitstring, hgov: bitstring, att: bitstring))) = checksign(stx, sender) in
-  (*CHK:did_bound_to_sender*) if did = didOf(sender) then
-  (*CHK:irm_attestation*) if checksign(att, pk(skIRM)) = (tAtt, (did, hgov)) then
-  event Anchored(did, sender, hgov);
-  out(c, (did, sender, hgov)).
+  let (=tTx, (=addrDID, (=selRegisterDID, did: bitstring, hgov: bitstring))) = checksign(stx, sender) in
+  (*CHK:only_registrar*) if sender = pk(skIRM) then
+  event Anchored(did, hgov).
 
 process
   out(c, pk(skIRM));
   (
     (!IRM)
   | (!DIDRegistry)
-  | (!in(c, x: bitstring); out(tls, x))
-  | (!new skH: skey; new gH: bitstring; insert validGovIDs(gH);
-       (User(skH, gH) | KeyReuseOracle(skH)))
-  | (insert validGovIDs(govVictim);
-       !new skV: skey; (User(skV, govVictim) | KeyReuseOracle(skV)))
-  | (!new gC: bitstring; insert validGovIDs(gC); out(c, gC))
+  | KeyReuseOracle(skIRM)
+  | (!in(c, x: bitstring); out(tls, x))                   (* attacker's own TLS sessions *)
+  | (!new gH: bitstring; event Enrolled(gH); insert validGovIDs(gH); out(tls, gH))
+  | (event Enrolled(govVictim); insert validGovIDs(govVictim); !out(tls, govVictim))
+  | (!new gC: bitstring; event Enrolled(gC); insert validGovIDs(gC); out(c, gC))
   )
